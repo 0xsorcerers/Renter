@@ -111,23 +111,23 @@ export function ReviewCard({ review, showListing }: { review: Review; showListin
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
   head: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   authorRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 },
-  name: { fontFamily: fonts.family, fontSize: 14, fontWeight: "800", color: colors.onSurface },
-  time: { fontFamily: fonts.family, fontSize: 11, color: colors.muted },
-  listingRef: { fontFamily: fonts.family, fontSize: 12, color: colors.brandPrimary, fontWeight: "700" },
-  text: { fontFamily: fonts.family, fontSize: 14, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  name: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
+  time: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.muted },
+  listingRef: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.brandPrimary, fontWeight: "700" },
+  text: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary, lineHeight: r.ms(20) },
   thread: { marginLeft: spacing.md, borderLeftWidth: 2, borderLeftColor: colors.brandTertiary, paddingLeft: spacing.md, gap: spacing.sm, marginTop: spacing.xs },
   replyBubble: { backgroundColor: colors.surface, borderRadius: radius.md, padding: spacing.md, gap: 6 },
   replyHead: { flexDirection: "row", alignItems: "center", gap: 6, flexWrap: "wrap" },
-  replyName: { fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.onSurface },
-  replyText: { fontFamily: fonts.family, fontSize: 13, color: colors.onSurfaceSecondary, lineHeight: 18 },
+  replyName: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onSurface },
+  replyText: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.onSurfaceSecondary, lineHeight: r.ms(18) },
   replyBox: { gap: spacing.sm },
   replyInput: {
     fontFamily: fonts.family,
-    fontSize: 14,
+    fontSize: r.ms(14),
     color: colors.onSurface,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
@@ -137,5 +137,5 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.border,
   },
   replyLink: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingVertical: 4 },
-  replyLinkText: { fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.brandPrimary },
+  replyLinkText: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.brandPrimary },
 }));

@@ -77,7 +77,7 @@ function ErrorFallback({ error, resetError }: { error: Error; resetError: () => 
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   container: {
     flex: 1,
     backgroundColor: colors.surface,
@@ -90,18 +90,18 @@ const useStyles = makeStyles((colors) => ({
   },
   title: {
     color: colors.onSurface,
-    fontSize: 22,
+    fontSize: r.ms(22),
     fontWeight: "700",
     textAlign: "center",
   },
   message: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: r.ms(15),
     textAlign: "center",
   },
   devMessage: {
     color: colors.error,
-    fontSize: 13,
+    fontSize: r.ms(13),
     textAlign: "center",
   },
   button: {
@@ -117,13 +117,13 @@ const useStyles = makeStyles((colors) => ({
   },
   buttonText: {
     color: colors.onBrandPrimary,
-    fontSize: 15,
+    fontSize: r.ms(15),
     fontWeight: "600",
     textAlign: "center",
   },
   detailsToggle: {
     color: colors.muted,
-    fontSize: 13,
+    fontSize: r.ms(13),
     textDecorationLine: "underline",
     paddingVertical: 8,
   },
@@ -140,8 +140,8 @@ const useStyles = makeStyles((colors) => ({
   },
   detailsText: {
     color: colors.onSurfaceSecondary,
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: r.ms(12),
+    lineHeight: r.ms(18),
     fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
   },
 }));

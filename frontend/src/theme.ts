@@ -31,7 +31,7 @@
 // Feel free to add as many new colors as you need to support the design guidelines.
 
 import { useMemo } from "react";
-import { Appearance, StyleSheet, useColorScheme } from "react-native";
+import { Appearance, StyleSheet, useColorScheme, useWindowDimensions } from "react-native";
 
 export type ColorScheme = "light" | "dark";
 
@@ -117,18 +117,47 @@ setColorScheme?.(themes.dark ? null : defaultScheme);
 
 export function useTheme(): { scheme: ColorScheme; colors: ThemeColors } {
   const system = useColorScheme();
-  const scheme: ColorScheme = system && themes[system] ? system : defaultScheme;
+  const scheme: ColorScheme = system && themes[system as ColorScheme] ? (system as ColorScheme) : defaultScheme;
   return { scheme, colors: themes[scheme] ?? themes.light };
 }
 
+// Responsive helpers: scale type and key sizes with the device's shortest side
+// (base 390pt phone), clamped so tablets don't balloon and small phones stay legible.
+export type Responsive = {
+  width: number;
+  height: number;
+  scale: number;
+  isTablet: boolean;
+  contentMaxWidth: number;
+  /** moderate scale for font sizes / small dimensions */
+  ms: (n: number) => number;
+};
+
+export function useResponsive(): Responsive {
+  const { width, height } = useWindowDimensions();
+  return useMemo(() => {
+    const shortest = Math.min(width, height);
+    const scale = Math.min(Math.max(shortest / 390, 0.88), 1.2);
+    return {
+      width,
+      height,
+      scale,
+      isTablet: shortest >= 700,
+      contentMaxWidth: 680,
+      ms: (n: number) => Math.round(n * scale * 2) / 2,
+    };
+  }, [width, height]);
+}
+
 // Themed StyleSheet: returns a hook that builds the sheet from the active
-// scheme's colors and memoizes it until the scheme changes.
+// scheme's colors (and responsive scale) and memoizes it until they change.
 export function makeStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
-  factory: (colors: ThemeColors) => T & StyleSheet.NamedStyles<any>,
+  factory: (colors: ThemeColors, r: Responsive) => T & StyleSheet.NamedStyles<any>,
 ): () => T {
   return function useStyles(): T {
     const { colors } = useTheme();
-    return useMemo(() => StyleSheet.create(factory(colors)), [colors]);
+    const r = useResponsive();
+    return useMemo(() => StyleSheet.create(factory(colors, r)), [colors, r]);
   };
 }
 

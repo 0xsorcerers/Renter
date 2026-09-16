@@ -18,6 +18,10 @@ export default function TabsLayout() {
           <NativeTabs.Trigger.Icon sf="map.fill" />
           <NativeTabs.Trigger.Label>Explore</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="saved">
+          <NativeTabs.Trigger.Icon sf="heart.fill" />
+          <NativeTabs.Trigger.Label>Saved</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="activity">
           <NativeTabs.Trigger.Icon sf="bolt.fill" />
           <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
@@ -61,6 +65,10 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{ title: "Explore", tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "map" : "map-outline"} size={24} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="saved"
+        options={{ title: "Saved", tabBarIcon: ({ color, focused }) => <Ionicons name={focused ? "heart" : "heart-outline"} size={24} color={color} /> }}
       />
       <Tabs.Screen
         name="activity"

@@ -113,20 +113,20 @@ function Stat({ value, label }: { value: string; label: string }) {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, alignItems: "center", gap: spacing.sm },
   heroTop: { alignSelf: "stretch", flexDirection: "row", marginBottom: spacing.sm },
   avatarWrap: { padding: 4, borderRadius: 60, backgroundColor: colors.surface },
-  name: { fontFamily: fonts.family, fontSize: 26, fontWeight: "800", color: colors.onSurface },
-  loc: { fontFamily: fonts.family, fontSize: 13, color: colors.muted },
+  name: { fontFamily: fonts.family, fontSize: r.ms(26), fontWeight: "800", color: colors.onSurface },
+  loc: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.muted },
   statsRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.md, alignSelf: "stretch" },
   stat: { flex: 1, backgroundColor: colors.glassStrong, borderRadius: radius.lg, padding: spacing.md, alignItems: "center" },
-  statValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: "800", color: colors.onSurface },
-  statLabel: { fontFamily: fonts.family, fontSize: 11, color: colors.muted, fontWeight: "700", textTransform: "uppercase" },
-  body: { padding: spacing.lg, gap: spacing.lg },
+  statValue: { fontFamily: fonts.family, fontSize: r.ms(18), fontWeight: "800", color: colors.onSurface },
+  statLabel: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.muted, fontWeight: "700", textTransform: "uppercase" },
+  body: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  cardLabel: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.brandPrimary, textTransform: "uppercase", letterSpacing: 1 },
-  bio: { fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary, lineHeight: 22 },
-  emptyLine: { fontFamily: fonts.family, fontSize: 14, color: colors.muted },
+  cardLabel: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.brandPrimary, textTransform: "uppercase", letterSpacing: 1 },
+  bio: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary, lineHeight: r.ms(22) },
+  emptyLine: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.muted },
 }));

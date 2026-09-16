@@ -221,7 +221,7 @@ export function RoleBadge({ role }: { role: string | null | undefined }) {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   btn: {
     minHeight: 52,
     borderRadius: radius.pill,
@@ -232,11 +232,11 @@ const useStyles = makeStyles((colors) => ({
     gap: spacing.sm,
   },
   btnSmall: { minHeight: 40, paddingHorizontal: spacing.lg },
-  btnText: { fontFamily: fonts.family, fontSize: 16, fontWeight: "700" },
-  btnTextSmall: { fontSize: 14 },
+  btnText: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "700" },
+  btnTextSmall: { fontSize: r.ms(14) },
   iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
   fieldWrap: { gap: 6 },
-  label: { fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.onSurfaceSecondary, marginLeft: spacing.xs },
+  label: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onSurfaceSecondary, marginLeft: spacing.xs },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -248,8 +248,8 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: spacing.lg,
     minHeight: 54,
   },
-  input: { flex: 1, fontFamily: fonts.family, fontSize: 16, color: colors.onSurface, paddingVertical: spacing.md },
-  error: { fontFamily: fonts.family, fontSize: 12, color: colors.error, marginLeft: spacing.xs },
+  input: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(16), color: colors.onSurface, paddingVertical: spacing.md },
+  error: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.error, marginLeft: spacing.xs },
   chip: {
     height: 36,
     flexShrink: 0,
@@ -261,15 +261,15 @@ const useStyles = makeStyles((colors) => ({
     justifyContent: "center",
     gap: 6,
   },
-  chipText: { fontFamily: fonts.family, fontSize: 13, fontWeight: "600" },
+  chipText: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "600" },
   avatarFallback: { backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
   avatarText: { fontFamily: fonts.family, fontWeight: "800", color: colors.onBrandTertiary },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: spacing.md },
-  sectionTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: "800", color: colors.onSurface },
+  sectionTitle: { fontFamily: fonts.family, fontSize: r.ms(20), fontWeight: "800", color: colors.onSurface },
   empty: { alignItems: "center", paddingVertical: spacing["2xl"], paddingHorizontal: spacing.xl, gap: spacing.sm },
   emptyIcon: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontFamily: fonts.family, fontSize: 17, fontWeight: "800", color: colors.onSurface, textAlign: "center" },
-  emptySub: { fontFamily: fonts.family, fontSize: 14, color: colors.muted, textAlign: "center" },
+  emptyTitle: { fontFamily: fonts.family, fontSize: r.ms(17), fontWeight: "800", color: colors.onSurface, textAlign: "center" },
+  emptySub: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.muted, textAlign: "center" },
   roleBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: spacing.md, height: 26, borderRadius: radius.pill, alignSelf: "flex-start" },
-  roleText: { fontFamily: fonts.family, fontSize: 12, fontWeight: "700" },
+  roleText: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "700" },
 }));

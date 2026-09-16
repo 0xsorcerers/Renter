@@ -537,6 +537,14 @@ async def serve_file(path: str):
 # ---------------------------------------------------------------------------
 # Listings
 # ---------------------------------------------------------------------------
+def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    from math import radians, sin, cos, asin, sqrt
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return 6371 * 2 * asin(sqrt(a))
+
+
 async def decorate_listing(doc: dict, viewer: Optional[dict] = None) -> dict:
     owner = await get_user(doc["owner_id"])
     doc["owner"] = user_summary(owner)
@@ -545,6 +553,10 @@ async def decorate_listing(doc: dict, viewer: Optional[dict] = None) -> dict:
     doc["reviews_count"] = len(reviews)
     doc["rating"] = round(sum(r["rating"] for r in reviews) / len(reviews), 1) if reviews else None
     doc["is_mine"] = bool(viewer and viewer["user_id"] == doc["owner_id"])
+    doc["is_favorited"] = bool(
+        viewer and await db.favorites.find_one({"user_id": viewer["user_id"], "listing_id": doc["listing_id"], "deleted_at": None})
+    )
+    doc.setdefault("distance_km", None)
     return doc
 
 
@@ -573,9 +585,27 @@ async def list_listings(
     period: str = Query(""),
     mine: bool = Query(False),
     owner_id: str = Query(""),
+    min_price: Optional[float] = Query(None),
+    max_price: Optional[float] = Query(None),
+    bedrooms: Optional[int] = Query(None),
+    property_type: str = Query(""),
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
+    radius_km: float = Query(25),
     viewer: Optional[dict] = Depends(optional_user),
 ):
     filt: dict = {"deleted_at": None}
+    if min_price is not None or max_price is not None:
+        price_f: dict = {}
+        if min_price is not None:
+            price_f["$gte"] = min_price
+        if max_price is not None:
+            price_f["$lte"] = max_price
+        filt["price"] = price_f
+    if bedrooms:
+        filt["bedrooms"] = {"$gte": bedrooms}
+    if property_type:
+        filt["property_type"] = property_type
     if q:
         filt["$or"] = [
             {"title": {"$regex": q, "$options": "i"}},
@@ -591,8 +621,45 @@ async def list_listings(
         filt["owner_id"] = viewer["user_id"]
     if owner_id:
         filt["owner_id"] = owner_id
-    docs = await db.listings.find(filt, {"_id": 0}).sort("created_at", -1).to_list(200)
-    return [await decorate_listing(d, viewer) for d in docs]
+    docs = await db.listings.find(filt, {"_id": 0}).sort("created_at", -1).to_list(500)
+    if lat is not None and lng is not None:
+        near = []
+        for d in docs:
+            dist = haversine_km(lat, lng, d["lat"], d["lng"])
+            if dist <= radius_km:
+                d["distance_km"] = round(dist, 1)
+                near.append(d)
+        docs = sorted(near, key=lambda d: d["distance_km"])
+    return [await decorate_listing(d, viewer) for d in docs[:200]]
+
+
+# ---------------------------------------------------------------------------
+# Favorites
+# ---------------------------------------------------------------------------
+@api.post("/listings/{listing_id}/favorite")
+async def toggle_favorite(listing_id: str, user: dict = Depends(current_user)):
+    if not await db.listings.find_one({"listing_id": listing_id, "deleted_at": None}, {"_id": 0, "listing_id": 1}):
+        raise HTTPException(status_code=404, detail="Listing not found")
+    existing = await db.favorites.find_one({"user_id": user["user_id"], "listing_id": listing_id})
+    if existing and existing.get("deleted_at") is None:
+        await db.favorites.update_one({"_id": existing["_id"]}, {"$set": {"deleted_at": now()}})
+        return {"favorited": False}
+    if existing:
+        await db.favorites.update_one({"_id": existing["_id"]}, {"$set": {"deleted_at": None, "created_at": now()}})
+    else:
+        await db.favorites.insert_one({"user_id": user["user_id"], "listing_id": listing_id, "created_at": now(), "deleted_at": None})
+    return {"favorited": True}
+
+
+@api.get("/favorites")
+async def my_favorites(user: dict = Depends(current_user)):
+    favs = await db.favorites.find({"user_id": user["user_id"], "deleted_at": None}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    out = []
+    for f in favs:
+        doc = await db.listings.find_one({"listing_id": f["listing_id"], "deleted_at": None}, {"_id": 0})
+        if doc:
+            out.append(await decorate_listing(doc, user))
+    return out
 
 
 @api.get("/listings/{listing_id}")
@@ -614,9 +681,29 @@ async def delete_listing(listing_id: str, user: dict = Depends(current_user)):
 # ---------------------------------------------------------------------------
 # Offers
 # ---------------------------------------------------------------------------
+OfferStatus = Literal["pending", "accepted", "declined"]
+
+
+class OfferStatusBody(BaseModel):
+    status: OfferStatus
+
+
 async def decorate_offer(o: dict) -> dict:
     o["tenant"] = user_summary(await get_user(o["tenant_id"]))
+    o.setdefault("status", "pending")
     return o
+
+
+@api.patch("/offers/{offer_id}")
+async def respond_offer(offer_id: str, body: OfferStatusBody, user: dict = Depends(current_user)):
+    offer = await db.offers.find_one({"offer_id": offer_id, "deleted_at": None}, {"_id": 0})
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offer not found")
+    if offer["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Only the homeowner can respond to offers")
+    await db.offers.update_one({"offer_id": offer_id}, {"$set": {"status": body.status, "responded_at": now()}})
+    offer["status"] = body.status
+    return await decorate_offer(offer)
 
 
 @api.post("/listings/{listing_id}/offers")
@@ -636,6 +723,7 @@ async def create_offer(listing_id: str, body: OfferCreate, user: dict = Depends(
         "currency_symbol": listing["currency_symbol"],
         "period": listing["period"],
         "message": body.message,
+        "status": "pending",
         "created_at": now(),
         "deleted_at": None,
     }
@@ -657,6 +745,7 @@ async def my_offers(user: dict = Depends(current_user)):
     for o in docs:
         listing = await db.listings.find_one({"listing_id": o["listing_id"]}, {"_id": 0})
         o["listing"] = listing
+        o.setdefault("status", "pending")
         out.append(o)
     return out
 
@@ -831,6 +920,7 @@ async def on_startup():
     await db.offers.create_index("listing_id")
     await db.reviews.create_index("listing_id")
     await db.files.create_index("storage_path")
+    await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
     try:
         await run_in_threadpool(init_storage)
     except Exception as e:

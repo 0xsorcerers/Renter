@@ -7,14 +7,15 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, type Listing, type Period } from "@/src/api";
+import { makeStyles, useTheme, useResponsive, fonts, radius, spacing } from "@/src/theme";
+import { api, buildListingQuery, type Listing, type ListingFilters, type Period } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { AppMap } from "@/src/components/app-map";
 import { Glass } from "@/src/components/glass";
 import { Chip, EmptyState, IconButton } from "@/src/components/ui";
 import { ListingCard } from "@/src/components/listing-card";
+import { FilterSheet, countActiveFilters } from "@/src/components/filter-sheet";
 import { formatPrice, PERIOD_SHORT } from "@/src/currency";
 
 const PERIODS: { key: "" | Period; label: string }[] = [
@@ -32,16 +33,21 @@ export default function Explore() {
   const router = useRouter();
   const { user } = useAuth();
   const { width } = useWindowDimensions();
+  const { contentMaxWidth } = useResponsive();
   const [q, setQ] = useState("");
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<"" | Period>("");
+  const [filters, setFilters] = useState<ListingFilters>({});
+  const [showFilters, setShowFilters] = useState(false);
   const [mode, setMode] = useState<"map" | "list">("map");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const carouselRef = useRef<FlatList<Listing>>(null);
+  const activeFilters = countActiveFilters(filters);
 
+  const fullFilters = useMemo<ListingFilters>(() => ({ ...filters, q: search, period }), [filters, search, period]);
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["listings", search, period],
-    queryFn: () => api<Listing[]>(`/listings?q=${encodeURIComponent(search)}&period=${period}`),
+    queryKey: ["listings", fullFilters],
+    queryFn: () => api<Listing[]>(`/listings${buildListingQuery(fullFilters)}`),
   });
   const listings = useMemo(() => data ?? [], [data]);
   const selected = listings.find((l) => l.listing_id === selectedId) ?? listings[0];
@@ -68,7 +74,7 @@ export default function Explore() {
 
   const header = (
     <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]} pointerEvents="box-none">
-      <Glass strong style={styles.searchPill} testID="explore-search-pill">
+      <Glass strong style={[styles.searchPill, { maxWidth: contentMaxWidth, alignSelf: "center", width: width - spacing.lg * 2 }]} testID="explore-search-pill">
         <View style={styles.searchRow}>
           <Ionicons name="search" size={18} color={colors.muted} />
           <TextInput
@@ -94,6 +100,21 @@ export default function Explore() {
             </Pressable>
           )}
           <Pressable
+            testID="explore-filter-button"
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+              setShowFilters(true);
+            }}
+            style={[styles.modeBtn, activeFilters > 0 && styles.filterBtnActive]}
+          >
+            <Ionicons name="options" size={18} color={colors.onSurfaceInverse} />
+            {activeFilters > 0 && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{activeFilters}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable
             testID="explore-mode-toggle"
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -109,7 +130,9 @@ export default function Explore() {
         {PERIODS.map((p) => (
           <Chip key={p.key} testID={`period-chip-${p.key || "all"}`} label={p.label} selected={period === p.key} onPress={() => setPeriod(p.key)} />
         ))}
+        {filters.near && <Chip testID="near-me-chip" icon="navigate" label={`Within ${filters.near.radius_km} km`} selected onPress={() => setFilters((f) => ({ ...f, near: null }))} />}
       </ScrollView>
+      <FilterSheet visible={showFilters} onClose={() => setShowFilters(false)} value={filters} onApply={setFilters} />
     </View>
   );
 
@@ -131,7 +154,7 @@ export default function Explore() {
         <FlatList
           data={listings}
           keyExtractor={(l) => l.listing_id}
-          contentContainerStyle={{ paddingTop: insets.top + 130, paddingBottom: bottomChrome + spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.lg }}
+          contentContainerStyle={{ paddingTop: insets.top + 130, paddingBottom: bottomChrome + spacing.xl, paddingHorizontal: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: contentMaxWidth, alignSelf: "center" }}
           renderItem={({ item, index }) => (
             <Animated.View entering={FadeInDown.delay(Math.min(index, 6) * 60).springify().damping(18)}>
               <ListingCard listing={item} testID={`listing-card-${item.listing_id}`} />
@@ -226,21 +249,24 @@ export default function Explore() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   map: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   header: { position: "absolute", top: 0, left: 0, right: 0, gap: spacing.sm },
   searchPill: { marginHorizontal: spacing.lg, borderRadius: radius.pill },
   searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingLeft: spacing.lg, paddingRight: 6, height: 56 },
-  searchInput: { flex: 1, fontFamily: fonts.family, fontSize: 15, color: colors.onSurface, height: 56 },
+  searchInput: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurface, height: 56 },
   modeBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceInverse, alignItems: "center", justifyContent: "center" },
+  filterBtnActive: { backgroundColor: colors.brandPrimary },
+  filterBadge: { position: "absolute", top: -2, right: -2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.brandSecondary, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  filterBadgeText: { fontFamily: fonts.family, fontSize: r.ms(10), fontWeight: "800", color: colors.onBrandSecondary },
   chipRow: { height: 56, flexGrow: 0 },
   chipRowContent: { paddingHorizontal: spacing.lg, gap: spacing.sm, alignItems: "center" },
   carousel: { position: "absolute", left: 0, right: 0, flexGrow: 0 },
   center: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" },
   loadingPill: { borderRadius: radius.pill },
   loadingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, height: 48 },
-  loadingText: { fontFamily: fonts.family, fontSize: 14, fontWeight: "700", color: colors.onSurface },
+  loadingText: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "700", color: colors.onSurface },
   emptyGlass: { borderRadius: radius.lg, marginHorizontal: spacing.xl },
   fab: {
     position: "absolute",
@@ -259,8 +285,8 @@ const useStyles = makeStyles((colors) => ({
     shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
-  fabText: { fontFamily: fonts.family, fontSize: 15, fontWeight: "800", color: colors.onSurfaceInverse },
+  fabText: { fontFamily: fonts.family, fontSize: r.ms(15), fontWeight: "800", color: colors.onSurfaceInverse },
   countPill: { position: "absolute", left: spacing.lg },
-  countText: { fontFamily: fonts.family, fontSize: 13, fontWeight: "800", color: colors.onSurface, paddingHorizontal: spacing.lg, height: 40, lineHeight: 40 },
+  countText: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "800", color: colors.onSurface, paddingHorizontal: spacing.lg, height: 40, lineHeight: r.ms(40) },
   locate: { position: "absolute", right: spacing.lg },
 }));

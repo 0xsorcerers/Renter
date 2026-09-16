@@ -10,8 +10,10 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, fileUrl, type Listing, type Offer, type Review } from "@/src/api";
+import { api, fileUrl, type Listing, type Offer, type OfferStatus, type Review } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
+import { useFavorite } from "@/src/use-favorite";
+import { OfferStatusBadge } from "@/src/components/offer-status";
 import { PriceTag } from "@/src/components/price-tag";
 import { Glass } from "@/src/components/glass";
 import { AppMap } from "@/src/components/app-map";
@@ -40,8 +42,19 @@ export default function ListingDetail() {
   const [reviewText, setReviewText] = useState("");
 
   const listing = useQuery({ queryKey: ["listing", id], queryFn: () => api<Listing>(`/listings/${id}`) });
-  const offers = useQuery({ queryKey: ["offers", id], queryFn: () => api<Offer[]>(`/listings/${id}/offers`) });
+  const offers = useQuery({ queryKey: ["offers", id], queryFn: () => api<Offer[]>(`/listings/${id}/offers`), refetchInterval: 15000 });
   const reviews = useQuery({ queryKey: ["reviews", "listing", id], queryFn: () => api<Review[]>(`/reviews?listing_id=${id}`) });
+  const favorite = useFavorite();
+
+  const respond = useMutation({
+    mutationFn: (vars: { offerId: string; status: OfferStatus }) => api(`/offers/${vars.offerId}`, { method: "PATCH", body: { status: vars.status } }),
+    onSuccess: (_d, vars) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["offers"] });
+      toast.show(vars.status === "accepted" ? "Offer accepted — reach out to the tenant!" : "Offer declined", vars.status === "accepted" ? "success" : "info");
+    },
+    onError: (e: any) => toast.show(e.message, "error"),
+  });
 
   const makeOffer = useMutation({
     mutationFn: () => api(`/listings/${id}/offers`, { method: "POST", body: { amount: Number(offerAmount.replace(/[^\d.]/g, "")), message: offerMsg } }),
@@ -126,7 +139,18 @@ export default function ListingDetail() {
           <LinearGradient colors={[colors.scrim, "transparent"]} style={styles.scrimTop} pointerEvents="none" />
           <View style={[styles.heroTopRow, { top: insets.top + spacing.sm }]}>
             <IconButton testID="listing-back-button" icon="chevron-back" onPress={() => router.back()} bg={colors.glassStrong} />
-            {isOwner && <IconButton testID="listing-delete-button" icon="trash-outline" onPress={() => removeListing.mutate()} bg={colors.glassStrong} color={colors.error} />}
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              {!isOwner && (
+                <IconButton
+                  testID="listing-favorite-button"
+                  icon={l.is_favorited ? "heart" : "heart-outline"}
+                  color={l.is_favorited ? colors.error : colors.onSurface}
+                  onPress={() => favorite.mutate({ listingId: l.listing_id, next: !l.is_favorited })}
+                  bg={colors.glassStrong}
+                />
+              )}
+              {isOwner && <IconButton testID="listing-delete-button" icon="trash-outline" onPress={() => removeListing.mutate()} bg={colors.glassStrong} color={colors.error} />}
+            </View>
           </View>
           {photos.length > 1 && (
             <View style={styles.dots}>
@@ -250,13 +274,39 @@ export default function ListingDetail() {
                 <Text style={styles.emptyLine}>No offers yet{isTenant ? " — be the first." : "."}</Text>
               )}
               {(offers.data ?? []).map((o) => (
-                <View key={o.offer_id} style={styles.offerBubble} testID={`offer-${o.offer_id}`}>
-                  <Pressable onPress={() => o.tenant && router.push(`/user/${o.tenant.user_id}`)} style={styles.offerHead}>
-                    <Avatar uri={o.tenant?.picture} name={o.tenant?.name} size={34} />
-                    <Text style={styles.offerName}>{o.tenant?.name ?? "Tenant"}</Text>
-                  </Pressable>
+                <View key={o.offer_id} style={[styles.offerBubble, o.status === "accepted" && styles.offerAccepted, o.status === "declined" && styles.offerDeclined]} testID={`offer-${o.offer_id}`}>
+                  <View style={styles.offerHeadRow}>
+                    <Pressable onPress={() => o.tenant && router.push(`/user/${o.tenant.user_id}`)} style={styles.offerHead}>
+                      <Avatar uri={o.tenant?.picture} name={o.tenant?.name} size={34} />
+                      <Text style={styles.offerName}>{o.tenant?.name ?? "Tenant"}</Text>
+                    </Pressable>
+                    <OfferStatusBadge status={o.status} testID={`offer-status-${o.offer_id}`} />
+                  </View>
                   <PriceTag amount={o.amount} symbol={o.currency_symbol} currency={o.currency} period={o.period} size="sm" />
                   {o.message ? <Text style={styles.offerMsg}>{o.message}</Text> : null}
+                  {isOwner && o.status === "pending" && (
+                    <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                      <Button
+                        testID={`offer-accept-${o.offer_id}`}
+                        title="Accept"
+                        icon="checkmark"
+                        small
+                        style={{ flex: 1 }}
+                        loading={respond.isPending && respond.variables?.offerId === o.offer_id && respond.variables?.status === "accepted"}
+                        onPress={() => respond.mutate({ offerId: o.offer_id, status: "accepted" })}
+                      />
+                      <Button
+                        testID={`offer-decline-${o.offer_id}`}
+                        title="Decline"
+                        icon="close"
+                        small
+                        variant="ghost"
+                        style={{ flex: 1 }}
+                        loading={respond.isPending && respond.variables?.offerId === o.offer_id && respond.variables?.status === "declined"}
+                        onPress={() => respond.mutate({ offerId: o.offer_id, status: "declined" })}
+                      />
+                    </View>
+                  )}
                   {isOwner && o.tenant && <ContactButtons phone={o.tenant.phone} whatsapp={o.tenant.whatsapp} small message={`Hi ${o.tenant.name}, about your offer on "${l.title}"`} />}
                 </View>
               ))}
@@ -322,7 +372,7 @@ function Fact({ icon, label }: { icon: any; label: string }) {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   center: { alignItems: "center", justifyContent: "center" },
   hero: { position: "relative", backgroundColor: colors.surfaceTertiary },
@@ -335,36 +385,39 @@ const useStyles = makeStyles((colors) => ({
   dotActive: { backgroundColor: colors.brandSecondary, width: 18 },
   heroBottom: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg, gap: spacing.sm },
   typePill: { alignSelf: "flex-start", backgroundColor: colors.brandSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 26, justifyContent: "center" },
-  typeText: { fontFamily: fonts.family, fontSize: 11, fontWeight: "800", color: colors.onBrandSecondary, textTransform: "capitalize" },
-  heroTitle: { fontFamily: fonts.family, fontSize: 26, fontWeight: "800", color: colors.onSurfaceInverse, letterSpacing: -0.5 },
-  body: { padding: spacing.lg, gap: spacing.xl },
+  typeText: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "800", color: colors.onBrandSecondary, textTransform: "capitalize" },
+  heroTitle: { fontFamily: fonts.family, fontSize: r.ms(26), fontWeight: "800", color: colors.onSurfaceInverse, letterSpacing: -0.5 },
+  body: { padding: spacing.lg, gap: spacing.xl, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   priceCard: { backgroundColor: colors.brandTertiary, borderRadius: radius.lg, padding: spacing.lg, gap: 6 },
-  priceLabel: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.onBrandTertiary, textTransform: "uppercase", letterSpacing: 1 },
-  priceHint: { fontFamily: fonts.family, fontSize: 12, color: colors.onBrandTertiary, fontWeight: "600" },
+  priceLabel: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.onBrandTertiary, textTransform: "uppercase", letterSpacing: 1 },
+  priceHint: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.onBrandTertiary, fontWeight: "600" },
   facts: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   fact: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.surfaceSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 34, borderWidth: 1, borderColor: colors.border },
-  factText: { fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.onSurface },
+  factText: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onSurface },
   addrRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
-  addr: { flex: 1, fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary, fontWeight: "600" },
+  addr: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary, fontWeight: "600" },
   miniMap: { height: 180, borderRadius: radius.lg, marginTop: -spacing.md },
   mapsLink: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", marginTop: -spacing.md },
-  mapsLinkText: { fontFamily: fonts.family, fontSize: 13, fontWeight: "800", color: colors.brandPrimary },
-  desc: { fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary, lineHeight: 23 },
+  mapsLinkText: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "800", color: colors.brandPrimary },
+  desc: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary, lineHeight: r.ms(23) },
   ownerCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
-  ownerName: { fontFamily: fonts.family, fontSize: 16, fontWeight: "800", color: colors.onSurface },
+  ownerName: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "800", color: colors.onSurface },
   formCard: { backgroundColor: colors.accentLemon, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md, marginBottom: spacing.md },
-  formHint: { fontFamily: fonts.family, fontSize: 12, fontWeight: "700", color: colors.onAccentLemon },
+  formHint: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "700", color: colors.onAccentLemon },
   amountRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.lg, paddingHorizontal: spacing.lg, height: 56 },
-  amountSymbol: { fontFamily: fonts.family, fontSize: 20, fontWeight: "800", color: colors.onSurface },
-  amountInput: { flex: 1, fontFamily: fonts.family, fontSize: 20, fontWeight: "800", color: colors.onSurface, height: 56 },
+  amountSymbol: { fontFamily: fonts.family, fontSize: r.ms(20), fontWeight: "800", color: colors.onSurface },
+  amountInput: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(20), fontWeight: "800", color: colors.onSurface, height: 56 },
   periodBadge: { backgroundColor: colors.brandPrimary, borderRadius: radius.pill, paddingHorizontal: spacing.sm + 2, height: 22, justifyContent: "center" },
-  periodBadgeText: { fontFamily: fonts.family, fontSize: 10, fontWeight: "800", color: colors.onBrandPrimary, letterSpacing: 0.6 },
-  msgInput: { fontFamily: fonts.family, fontSize: 14, color: colors.onSurface, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, minHeight: 70 },
-  emptyLine: { fontFamily: fonts.family, fontSize: 14, color: colors.muted },
+  periodBadgeText: { fontFamily: fonts.family, fontSize: r.ms(10), fontWeight: "800", color: colors.onBrandPrimary, letterSpacing: 0.6 },
+  msgInput: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurface, backgroundColor: colors.surface, borderRadius: radius.lg, padding: spacing.md, minHeight: 70 },
+  emptyLine: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.muted },
   offerBubble: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, borderTopLeftRadius: radius.sm, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
+  offerAccepted: { backgroundColor: colors.brandTertiary, borderColor: colors.brand },
+  offerDeclined: { opacity: 0.7 },
+  offerHeadRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
   offerHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  offerName: { fontFamily: fonts.family, fontSize: 14, fontWeight: "800", color: colors.onSurface },
-  offerMsg: { fontFamily: fonts.family, fontSize: 14, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  offerName: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
+  offerMsg: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary, lineHeight: r.ms(20) },
   stickyWrap: { position: "absolute", left: 0, right: 0, bottom: 0 },
   sticky: { borderTopLeftRadius: radius.lg + 4, borderTopRightRadius: radius.lg + 4, borderBottomWidth: 0 },
   stickyInner: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },

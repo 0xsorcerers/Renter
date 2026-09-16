@@ -31,7 +31,7 @@ export function Glass({ children, style, intensity = 40, dark, strong, testID }:
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   wrap: {
     overflow: "hidden",
     borderWidth: 1,

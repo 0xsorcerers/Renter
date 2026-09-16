@@ -92,16 +92,16 @@ export default function Register() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   bg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   blob: { position: "absolute", width: 240, height: 240, borderRadius: 120, opacity: 0.5 },
   blobA: { backgroundColor: colors.accentPink, top: 80, right: -100 },
-  scroll: { paddingHorizontal: spacing.xl, gap: spacing.lg },
+  scroll: { paddingHorizontal: spacing.xl, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  title: { fontFamily: fonts.family, fontSize: 28, fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5 },
-  subtitle: { fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary },
+  title: { fontFamily: fonts.family, fontSize: r.ms(28), fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary },
   card: { borderRadius: radius.lg + 8 },
   cardInner: { padding: spacing.xl, gap: spacing.lg },
-  sameLink: { fontFamily: fonts.family, fontSize: 12, fontWeight: "700", color: colors.brandPrimary },
+  sameLink: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "700", color: colors.brandPrimary },
 }));

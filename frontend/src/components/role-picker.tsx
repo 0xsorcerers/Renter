@@ -40,10 +40,10 @@ export function RolePicker({ value, onChange }: { value: Role; onChange: (r: Rol
   );
 }
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((_c, r) => ({
   row: { flexDirection: "row", gap: spacing.md },
   card: { flex: 1, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.xs, borderWidth: 2, minHeight: 110 },
   top: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.sm },
-  title: { fontFamily: fonts.family, fontSize: 15, fontWeight: "800" },
-  desc: { fontFamily: fonts.family, fontSize: 12, fontWeight: "600", opacity: 0.85 },
+  title: { fontFamily: fonts.family, fontSize: r.ms(15), fontWeight: "800" },
+  desc: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "600", opacity: 0.85 },
 }));

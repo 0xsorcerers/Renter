@@ -31,11 +31,16 @@ See `/app/memory/test_credentials.md` (owner@renter.app / tenant@renter.app, Pas
 ## Implemented (2026-06)
 - [x] Email/password + Google auth, role onboarding
 - [x] Explore: map with price pins (native), glass search pill, period chips, carousel of glass cards, list toggle
+- [x] Smart filters: price range, bedrooms, property type, "Near me" (expo-location, 25 km, haversine + distance_km)
+- [x] Saved homes: heart toggle (cards + detail), Saved tab
+- [x] Offer responses: owner Accept/Decline, status badges for tenant (15s polling)
+- [x] Responsive: `useResponsive()` font scaling (`r.ms`) in all stylesheets, content max width 680 on tablets
+- [x] Custom Renter logo as app icon / splash / login
 - [x] Listing detail: photo carousel, price + period badge, mini map, owner card, WhatsApp/Call sticky glass bar, tenant offers, reviews + threaded replies
 - [x] Create listing: photo upload, address autocomplete, auto currency + override, period segmented control, sticky publish
 - [x] Profiles (own + public) with bio, phone, WhatsApp, stats, reviews; edit profile with avatar upload
 - [x] Activity: homeowner listings / tenant offers
-- [x] Tested end-to-end by testing agent (iteration_1: all pass)
+- [x] Tested end-to-end by testing agent (iteration_1 & iteration_2: all pass)
 
 ## Known constraints
 - Google key has **no billing** → Places/Geocoding denied; backend falls back to OpenStreetMap. Enable billing + "Places API" + "Geocoding API" in Google Cloud to use Google results.
@@ -43,8 +48,7 @@ See `/app/memory/test_credentials.md` (owner@renter.app / tenant@renter.app, Pas
 - Google login only testable on device / real browser flow.
 
 ## Backlog
-- P1: Saved/favourite listings; in-app chat between tenant and owner
-- P1: Filters (price range, bedrooms, property type) and "near me" using device location
-- P2: Owner responds to offers (accept/decline), offer status for tenants
+- P1: In-app chat between tenant and owner
+- P2: Featured listings / paid boost (user deferred — needs payment provider decision)
 - P2: Listing availability calendar, mark as rented
 - P2: Push notifications for new offers/replies (on request only)

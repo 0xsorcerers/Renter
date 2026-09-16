@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 2 (Saved Homes + Smart Filters + Offer Accept/Decline + tablet + login logo) fully verified. Backend: 18/18 new pytest cases passed on the public URL covering (a) POST /api/listings/{id}/favorite toggling true→false with anon 401 and 404 for unknown id, GET /api/favorites persisting the current user's favourites, is_favorited attached to /api/listings for the authenticated viewer only; (b) /api/listings filters — min_price/max_price bounds, bedrooms >= N, property_type equals, lat/lng/radius_km returns only Lagos (2 seed listings within 25 km of 6.5,3.4) sorted asc by distance_km, Shanghai centre excludes non-Shanghai docs, combined q+period still works; (c) PATCH /api/offers/{id} — 200 for owner (accepted/declined persists and echoes to /listings/{id}/offers and /offers/mine), 403 for tenant, 403 for other homeowner, 422 for invalid status, 404 for unknown offer, all offers default to status='pending' in list endpoints. Frontend (Expo web, 390x844): tenant login → login-logo image renders → favorite-button-<id> on card toggles filled heart, Saved tab (saved-screen) shows saved-listing-<id> immediately; listing-favorite-button on the detail hero toggles both ways with no crash. Explore filter-sheet opens; filter-beds-2 + filter-apply-button reduces cards from 5 → 1 and filter-button badge shows '1'; property_type=studio and price 1000–5000 filters both reduce the set; filter-near-me-toggle taps without crashing on web (geolocation denied path). Tenant offer created via offer-submit-button appears with Pending badge; after logging in as owner and clicking offer-accept-<id>, the offer-status-<id> flips to 'Accepted' (green outline card, Call/WhatsApp active) and the accept/decline buttons disappear; offer-decline-<id> flips another pending offer to 'Declined' (grayed card, 'Offer declined' toast). Tablet viewport 1024x1366 renders Explore centered with content max-width and no overflow. No deprecated Expo packages detected (expo-av / expo-barcode-scanner / expo-background-fetch not present). Google Places has no billing key so /api/places/search silently falls back to Photon (unchanged from iteration 1).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "filter-sheet (390x844)", "issues": ["filter-reset-button and filter-beds-* chips can sit just below the mobile viewport when the sheet opens. Playwright hits 'Element is outside of viewport' unless scroll_into_view_if_needed() is used. On real mobile the sheet is scrollable so it works — but consider auto-scrolling the sheet on open, or reducing paddingBottom so the primary chips sit above the fold."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/test_renter_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_iteration2.xml"
+  ],
+  "action_items": [
+    "(Optional UX) Ensure filter-sheet opens with its primary chips (beds/type) inside the initial viewport on 390x844 — currently the sheet's paddingBottom pushes them below the fold; only affects users who don't scroll the sheet.",
+    "(Optional cleanup) Testing produced ~10 offers under owner@renter.app's Lekki listing (some Accepted/Declined by tests). Not a bug but consider a dev-only endpoint to prune TEST_* offers."
+  ],
+  "critical_code_review_comments": [
+    "decorate_listing still does N+1 async queries per listing (owner + counts + rating + favourite lookup). With favourites added it's now 4 subqueries per listing on every GET /api/listings — fine for the 5-listing seed but should be batched with aggregation once catalog grows.",
+    "GET /api/listings/{id}/offers is un-authenticated and returns everyone's offers on a listing. That's a reasonable public list but tenant PII is limited to name/picture via user_summary — good. Consider gating this to the owner + the offer's tenant if privacy matters.",
+    "haversine_km is computed in Python after fetching all non-soft-deleted listings — replace with $geoNear + 2dsphere index once >200 listings are typical."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py (created)"
+  ],
+  "success_rate": {"backend": "100% (18/18 iteration-2 cases, 30/30 iteration-1 cases still green)", "frontend": "100% of tested critical flows"},
+  "seed_data_creation": "No new users created. Owner's Lekki listing (lst_ed47630a8076) now has ~10 test-generated offers; the accepted/declined ones were toggled by these tests and remain in Mongo. No seed listings were mutated.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL: https://direct-housing-2.preview.emergentagent.com. Frontend uses EXPO_PUBLIC_BACKEND_URL. Filter-sheet chips may require scroll_into_view_if_needed() at 390x844. Explore defaults to map mode with a horizontal card scroller at the bottom — call explore-mode-toggle if you need explore-list-screen. Tenant Activity has a 'My offers' segment that shows my-offer-status-<id> badges with 15s polling; give it ~2s after login before asserting. Owner accept/decline API path is PATCH /api/offers/{id} with body {\"status\": \"accepted\"|\"declined\"} — invalid values return 422, non-owner returns 403."
+}

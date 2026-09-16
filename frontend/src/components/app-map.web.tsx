@@ -62,7 +62,7 @@ export function AppMap({ pins, center, onPinPress, style, testID }: Props) {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   wrap: { overflow: "hidden", backgroundColor: colors.surfaceTertiary, position: "relative" },
   fill: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   grid: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.35 },
@@ -82,7 +82,7 @@ const useStyles = makeStyles((colors) => ({
     borderColor: colors.brandPrimary,
   },
   pinSelected: { backgroundColor: colors.surfaceInverse, borderColor: colors.surfaceInverse },
-  pinText: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.onSurface },
+  pinText: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.onSurface },
   pinTextSelected: { color: colors.brandSecondary },
   note: {
     position: "absolute",
@@ -96,6 +96,6 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: spacing.md,
     height: 30,
   },
-  noteText: { fontFamily: fonts.family, fontSize: 11, color: colors.onSurface, fontWeight: "600" },
-  link: { fontFamily: fonts.family, fontSize: 11, color: colors.brandPrimary, fontWeight: "800" },
+  noteText: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.onSurface, fontWeight: "600" },
+  link: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.brandPrimary, fontWeight: "800" },
 }));

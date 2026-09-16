@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
+import { Image } from "expo-image";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
@@ -48,9 +49,7 @@ export default function Login() {
         keyboardShouldPersistTaps="handled"
       >
         <Animated.View entering={FadeInDown.springify().damping(18)} style={styles.brandRow}>
-          <View style={styles.logo}>
-            <Ionicons name="home" size={26} color={colors.onBrandPrimary} />
-          </View>
+          <Image source={require("../../assets/images/logo.png")} style={styles.logo} contentFit="cover" testID="login-logo" />
           <Text style={styles.brand}>Renter</Text>
           <Text style={styles.tagline}>Homes without the middlemen.</Text>
         </Animated.View>
@@ -106,24 +105,24 @@ export default function Login() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   bg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   blob: { position: "absolute", width: 260, height: 260, borderRadius: 130, opacity: 0.55 },
   blobA: { backgroundColor: colors.accentPink, top: -80, right: -70 },
   blobB: { backgroundColor: colors.brand, bottom: 40, left: -120 },
-  scroll: { paddingHorizontal: spacing.xl, gap: spacing.xl },
+  scroll: { paddingHorizontal: spacing.xl, gap: spacing.xl, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   brandRow: { alignItems: "flex-start", gap: spacing.sm },
-  logo: { width: 56, height: 56, borderRadius: 18, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center" },
-  brand: { fontFamily: fonts.family, fontSize: 40, fontWeight: "800", color: colors.onSurface, letterSpacing: -1 },
-  tagline: { fontFamily: fonts.family, fontSize: 16, color: colors.onSurfaceSecondary, fontWeight: "600" },
+  logo: { width: 84, height: 84, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.glassBorder },
+  brand: { fontFamily: fonts.family, fontSize: r.ms(40), fontWeight: "800", color: colors.onSurface, letterSpacing: -1 },
+  tagline: { fontFamily: fonts.family, fontSize: r.ms(16), color: colors.onSurfaceSecondary, fontWeight: "600" },
   card: { borderRadius: radius.lg + 8 },
   cardInner: { padding: spacing.xl, gap: spacing.lg },
-  title: { fontFamily: fonts.family, fontSize: 24, fontWeight: "800", color: colors.onSurface },
+  title: { fontFamily: fonts.family, fontSize: r.ms(24), fontWeight: "800", color: colors.onSurface },
   orRow: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   line: { flex: 1, height: 1, backgroundColor: colors.border },
-  or: { fontFamily: fonts.family, color: colors.muted, fontSize: 12, fontWeight: "700" },
+  or: { fontFamily: fonts.family, color: colors.muted, fontSize: r.ms(12), fontWeight: "700" },
   footer: { alignItems: "center", paddingVertical: spacing.md },
-  footerText: { fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary },
+  footerText: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary },
   footerLink: { color: colors.brandPrimary, fontWeight: "800" },
 }));

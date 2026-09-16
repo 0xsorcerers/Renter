@@ -12,6 +12,7 @@ import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { ListingCard } from "@/src/components/listing-card";
 import { Button, EmptyState } from "@/src/components/ui";
 import { PriceTag } from "@/src/components/price-tag";
+import { OfferStatusBadge } from "@/src/components/offer-status";
 
 export default function Activity() {
   const styles = useStyles();
@@ -31,6 +32,7 @@ export default function Activity() {
     queryKey: ["offers", "mine"],
     queryFn: () => api<Offer[]>("/offers/mine"),
     enabled: !isOwner,
+    refetchInterval: 15000,
   });
 
   const loading = isOwner ? myListings.isLoading : myOffers.isLoading;
@@ -84,10 +86,13 @@ export default function Activity() {
           refreshing={loading}
           onRefresh={refetch}
           renderItem={({ item }) => (
-            <Pressable onPress={() => router.push(`/listing/${item.listing_id}`)} style={styles.offerCard} testID={`my-offer-${item.offer_id}`}>
-              <Text style={styles.offerTitle} numberOfLines={1}>
-                {item.listing?.title ?? "Listing"}
-              </Text>
+            <Pressable onPress={() => router.push(`/listing/${item.listing_id}`)} style={[styles.offerCard, item.status === "accepted" && styles.offerAccepted]} testID={`my-offer-${item.offer_id}`}>
+              <View style={styles.offerTitleRow}>
+                <Text style={[styles.offerTitle, { flex: 1 }]} numberOfLines={1}>
+                  {item.listing?.title ?? "Listing"}
+                </Text>
+                <OfferStatusBadge status={item.status} testID={`my-offer-status-${item.offer_id}`} />
+              </View>
               <Text style={styles.offerAddr} numberOfLines={1}>
                 {item.listing?.city}, {item.listing?.country}
               </Text>
@@ -104,6 +109,9 @@ export default function Activity() {
                 )}
               </View>
               {item.message ? <Text style={styles.offerMsg}>“{item.message}”</Text> : null}
+              {item.status === "accepted" && item.listing?.owner_id && (
+                <Text style={styles.acceptedHint}>🎉 The homeowner accepted — open the listing to call or WhatsApp them.</Text>
+              )}
             </Pressable>
           )}
           ListEmptyComponent={
@@ -119,14 +127,14 @@ export default function Activity() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider },
   headerInner: { gap: 2 },
-  eyebrow: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.brandPrimary, letterSpacing: 1, textTransform: "uppercase" },
+  eyebrow: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.brandPrimary, letterSpacing: 1, textTransform: "uppercase" },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  title: { fontFamily: fonts.family, fontSize: 28, fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5 },
-  list: { padding: spacing.lg, gap: spacing.lg },
+  title: { fontFamily: fonts.family, fontSize: r.ms(28), fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5 },
+  list: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   offersLink: {
     flexDirection: "row",
     alignItems: "center",
@@ -136,11 +144,14 @@ const useStyles = makeStyles((colors) => ({
     paddingHorizontal: spacing.lg,
     height: 40,
   },
-  offersLinkText: { flex: 1, fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.onBrandTertiary },
+  offersLinkText: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onBrandTertiary },
   offerCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 6, borderWidth: 1, borderColor: colors.border },
-  offerTitle: { fontFamily: fonts.family, fontSize: 16, fontWeight: "800", color: colors.onSurface },
-  offerAddr: { fontFamily: fonts.family, fontSize: 13, color: colors.muted },
+  offerAccepted: { backgroundColor: colors.brandTertiary, borderColor: colors.brand },
+  offerTitleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  acceptedHint: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "700", color: colors.onBrandTertiary, marginTop: spacing.xs },
+  offerTitle: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "800", color: colors.onSurface },
+  offerAddr: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.muted },
   offerRow: { flexDirection: "row", gap: spacing.md, marginTop: spacing.sm },
-  offerLabel: { fontFamily: fonts.family, fontSize: 11, fontWeight: "700", color: colors.muted, marginBottom: 2, textTransform: "uppercase" },
-  offerMsg: { fontFamily: fonts.family, fontSize: 13, color: colors.onSurfaceSecondary, fontStyle: "italic", marginTop: spacing.xs },
+  offerLabel: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "700", color: colors.muted, marginBottom: 2, textTransform: "uppercase" },
+  offerMsg: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.onSurfaceSecondary, fontStyle: "italic", marginTop: spacing.xs },
 }));

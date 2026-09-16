@@ -122,24 +122,24 @@ function Row({ icon, label, value, testID }: { icon: any; label: string; value: 
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, alignItems: "center", gap: spacing.sm },
   heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", alignSelf: "stretch", marginBottom: spacing.md },
-  heroTitle: { fontFamily: fonts.family, fontSize: 24, fontWeight: "800", color: colors.onSurface },
+  heroTitle: { fontFamily: fonts.family, fontSize: r.ms(24), fontWeight: "800", color: colors.onSurface },
   avatarWrap: { padding: 4, borderRadius: 60, backgroundColor: colors.surface },
-  name: { fontFamily: fonts.family, fontSize: 24, fontWeight: "800", color: colors.onSurface },
-  loc: { fontFamily: fonts.family, fontSize: 13, color: colors.muted },
-  body: { padding: spacing.lg, gap: spacing.lg },
+  name: { fontFamily: fonts.family, fontSize: r.ms(24), fontWeight: "800", color: colors.onSurface },
+  loc: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.muted },
+  body: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   statsRow: { flexDirection: "row", gap: spacing.md },
   stat: { flex: 1, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  statValue: { fontFamily: fonts.family, fontSize: 18, fontWeight: "800", color: colors.onSurface },
-  statLabel: { fontFamily: fonts.family, fontSize: 11, color: colors.muted, fontWeight: "700", textTransform: "uppercase" },
+  statValue: { fontFamily: fonts.family, fontSize: r.ms(18), fontWeight: "800", color: colors.onSurface },
+  statLabel: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.muted, fontWeight: "700", textTransform: "uppercase" },
   card: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  cardLabel: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.brandPrimary, textTransform: "uppercase", letterSpacing: 1 },
-  bio: { fontFamily: fonts.family, fontSize: 15, color: colors.onSurfaceSecondary, lineHeight: 22 },
+  cardLabel: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.brandPrimary, textTransform: "uppercase", letterSpacing: 1 },
+  bio: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary, lineHeight: r.ms(22) },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 36 },
   rowIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" },
-  rowLabel: { fontFamily: fonts.family, fontSize: 14, color: colors.muted, width: 78 },
-  rowValue: { flex: 1, fontFamily: fonts.family, fontSize: 14, fontWeight: "700", color: colors.onSurface },
+  rowLabel: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.muted, width: 78 },
+  rowValue: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "700", color: colors.onSurface },
 }));

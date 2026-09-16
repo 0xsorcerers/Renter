@@ -135,20 +135,20 @@ export default function EditProfile() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
-  headerTitle: { fontFamily: fonts.family, fontSize: 18, fontWeight: "800", color: colors.onSurface },
-  scroll: { padding: spacing.lg, gap: spacing.lg },
+  headerTitle: { fontFamily: fonts.family, fontSize: r.ms(18), fontWeight: "800", color: colors.onSurface },
+  scroll: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   avatarBtn: { alignSelf: "center", position: "relative" },
   avatarBadge: { position: "absolute", right: -2, bottom: -2, width: 32, height: 32, borderRadius: 16, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", borderWidth: 3, borderColor: colors.surface },
-  label: { fontFamily: fonts.family, fontSize: 13, fontWeight: "700", color: colors.onSurfaceSecondary, marginLeft: spacing.xs, marginBottom: -spacing.sm },
-  sameLink: { fontFamily: fonts.family, fontSize: 12, fontWeight: "700", color: colors.brandPrimary },
+  label: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onSurfaceSecondary, marginLeft: spacing.xs, marginBottom: -spacing.sm },
+  sameLink: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "700", color: colors.brandPrimary },
   stickyWrap: { position: "absolute", left: 0, right: 0, bottom: 0 },
   sticky: { borderTopLeftRadius: radius.lg + 4, borderTopRightRadius: radius.lg + 4, borderBottomWidth: 0 },
   stickyInner: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   modalBackdrop: { flex: 1, backgroundColor: colors.overlay },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.lg + 8, borderTopRightRadius: radius.lg + 8, padding: spacing.xl, gap: spacing.md },
-  sheetTitle: { fontFamily: fonts.family, fontSize: 20, fontWeight: "800", color: colors.onSurface },
-  sheetBody: { fontFamily: fonts.family, fontSize: 14, color: colors.onSurfaceSecondary, lineHeight: 20 },
+  sheetTitle: { fontFamily: fonts.family, fontSize: r.ms(20), fontWeight: "800", color: colors.onSurface },
+  sheetBody: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary, lineHeight: r.ms(20) },
 }));

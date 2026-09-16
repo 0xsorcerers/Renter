@@ -51,7 +51,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
 export const useToast = () => useContext(Ctx);
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   wrap: { position: "absolute", left: spacing.lg, right: spacing.lg, alignItems: "center", zIndex: 1000 },
   toast: {
     flexDirection: "row",
@@ -67,5 +67,5 @@ const useStyles = makeStyles((colors) => ({
     elevation: 6,
     maxWidth: "100%",
   },
-  text: { fontFamily: fonts.family, fontSize: 14, fontWeight: "600", flexShrink: 1 },
+  text: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "600", flexShrink: 1 },
 }));

@@ -9,6 +9,7 @@ import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
 import { fileUrl, type Listing } from "@/src/api";
 import { PriceTag } from "./price-tag";
 import { Glass } from "./glass";
+import { useFavorite } from "@/src/use-favorite";
 
 type Props = { listing: Listing; compact?: boolean; glass?: boolean; width?: number; testID?: string };
 
@@ -16,6 +17,7 @@ export function ListingCard({ listing, compact, glass, width, testID }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();
+  const favorite = useFavorite();
   const photo = listing.photos?.[0];
 
   const body = (
@@ -35,6 +37,20 @@ export function ListingCard({ listing, compact, glass, width, testID }: Props) {
           <View style={styles.ratingPill}>
             <Ionicons name="star" size={12} color={colors.onAccentLemon} />
             <Text style={styles.ratingText}>{listing.rating}</Text>
+          </View>
+        )}
+        <Pressable
+          testID={`favorite-button-${listing.listing_id}`}
+          hitSlop={8}
+          onPress={() => favorite.mutate({ listingId: listing.listing_id, next: !listing.is_favorited })}
+          style={styles.heart}
+        >
+          <Ionicons name={listing.is_favorited ? "heart" : "heart-outline"} size={20} color={listing.is_favorited ? colors.error : colors.onSurface} />
+        </Pressable>
+        {listing.distance_km != null && (
+          <View style={styles.distancePill}>
+            <Ionicons name="navigate" size={11} color={colors.onSurfaceInverse} />
+            <Text style={styles.distanceText}>{listing.distance_km} km</Text>
           </View>
         )}
       </View>
@@ -82,7 +98,7 @@ export function ListingCard({ listing, compact, glass, width, testID }: Props) {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   card: {
     backgroundColor: colors.surfaceSecondary,
     borderRadius: radius.lg,
@@ -105,7 +121,7 @@ const useStyles = makeStyles((colors) => ({
     height: 26,
     justifyContent: "center",
   },
-  typeText: { fontFamily: fonts.family, fontSize: 11, fontWeight: "800", color: colors.onSurface, textTransform: "capitalize" },
+  typeText: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "800", color: colors.onSurface, textTransform: "capitalize" },
   ratingPill: {
     position: "absolute",
     right: spacing.md,
@@ -118,11 +134,35 @@ const useStyles = makeStyles((colors) => ({
     alignItems: "center",
     gap: 4,
   },
-  ratingText: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.onAccentLemon },
+  ratingText: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.onAccentLemon },
+  heart: {
+    position: "absolute",
+    right: spacing.md,
+    bottom: spacing.md,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.glassStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  distancePill: {
+    position: "absolute",
+    left: spacing.md,
+    bottom: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.surfaceInverse,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm + 2,
+    height: 24,
+  },
+  distanceText: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "800", color: colors.onSurfaceInverse },
   body: { padding: spacing.md, gap: 6 },
-  title: { fontFamily: fonts.family, fontSize: 16, fontWeight: "800", color: colors.onSurface },
+  title: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "800", color: colors.onSurface },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  loc: { fontFamily: fonts.family, fontSize: 13, color: colors.muted, flex: 1 },
+  loc: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.muted, flex: 1 },
   metaRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 2 },
-  meta: { fontFamily: fonts.family, fontSize: 12, color: colors.muted, fontWeight: "600" },
+  meta: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, fontWeight: "600" },
 }));

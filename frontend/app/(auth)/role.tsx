@@ -54,10 +54,10 @@ export default function RoleScreen() {
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   bg: { position: "absolute", top: 0, left: 0, right: 0, height: 320 },
   scroll: { paddingHorizontal: spacing.xl, gap: spacing.lg },
-  hi: { fontFamily: fonts.family, fontSize: 16, color: colors.onSurfaceSecondary, fontWeight: "600" },
-  title: { fontFamily: fonts.family, fontSize: 30, fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5, marginBottom: spacing.sm },
+  hi: { fontFamily: fonts.family, fontSize: r.ms(16), color: colors.onSurfaceSecondary, fontWeight: "600" },
+  title: { fontFamily: fonts.family, fontSize: r.ms(30), fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5, marginBottom: spacing.sm },
 }));

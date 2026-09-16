@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.emergent.directhousing.xybiz4",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Add photos of your home to your listing",
-        "NSCameraUsageDescription": "Snap photos of your home for tenants"
+        "NSCameraUsageDescription": "Snap photos of your home for tenants",
+        "NSLocationWhenInUseUsageDescription": "Find homes for rent near you"
       },
       "config": {
         "googleMapsApiKey": "AIzaSyBHNCwzbEmRACZ0ztnn9GJI_cctBKmKNO4"
@@ -24,7 +25,7 @@
         "backgroundColor": "#00A87D"
       },
       "package": "com.emergent.directhousing.xybiz4",
-      "permissions": ["android.permission.READ_MEDIA_IMAGES", "android.permission.READ_EXTERNAL_STORAGE"],
+      "permissions": ["android.permission.READ_MEDIA_IMAGES", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyBHNCwzbEmRACZ0ztnn9GJI_cctBKmKNO4"
@@ -56,6 +57,12 @@
         "expo-image-picker",
         {
           "photosPermission": "Add photos of your home to your listing"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Find homes for rent near you"
         }
       ],
       "@react-native-vector-icons/ionicons"

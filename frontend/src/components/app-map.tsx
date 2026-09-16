@@ -51,7 +51,7 @@ export function AppMap({ pins, center, zoomDelta = 0.08, onPinPress, style, inte
   );
 }
 
-const useStyles = makeStyles((colors) => ({
+const useStyles = makeStyles((colors, r) => ({
   wrap: { overflow: "hidden", backgroundColor: colors.surfaceTertiary },
   map: { width: "100%", height: "100%" },
   pin: {
@@ -68,6 +68,6 @@ const useStyles = makeStyles((colors) => ({
     elevation: 3,
   },
   pinSelected: { backgroundColor: colors.surfaceInverse, borderColor: colors.surfaceInverse },
-  pinText: { fontFamily: fonts.family, fontSize: 12, fontWeight: "800", color: colors.onSurface },
+  pinText: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.onSurface },
   pinTextSelected: { color: colors.brandSecondary },
 }));

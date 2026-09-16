@@ -134,6 +134,37 @@ export interface Listing {
   reviews_count: number;
   rating: number | null;
   is_mine: boolean;
+  is_favorited: boolean;
+  distance_km: number | null;
+}
+
+export type OfferStatus = "pending" | "accepted" | "declined";
+
+export interface ListingFilters {
+  q?: string;
+  period?: Period | "";
+  min_price?: string;
+  max_price?: string;
+  bedrooms?: number;
+  property_type?: string;
+  near?: { lat: number; lng: number; radius_km: number } | null;
+}
+
+export function buildListingQuery(f: ListingFilters) {
+  const p = new URLSearchParams();
+  if (f.q) p.set("q", f.q);
+  if (f.period) p.set("period", f.period);
+  if (f.min_price) p.set("min_price", f.min_price);
+  if (f.max_price) p.set("max_price", f.max_price);
+  if (f.bedrooms) p.set("bedrooms", String(f.bedrooms));
+  if (f.property_type) p.set("property_type", f.property_type);
+  if (f.near) {
+    p.set("lat", String(f.near.lat));
+    p.set("lng", String(f.near.lng));
+    p.set("radius_km", String(f.near.radius_km));
+  }
+  const s = p.toString();
+  return s ? `?${s}` : "";
 }
 
 export interface Offer {
@@ -145,6 +176,7 @@ export interface Offer {
   currency_symbol: string;
   period: Period;
   message: string;
+  status: OfferStatus;
   created_at: string;
   tenant: UserSummary | null;
   listing?: Listing | null;
