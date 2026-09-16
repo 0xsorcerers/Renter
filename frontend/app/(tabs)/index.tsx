@@ -16,6 +16,7 @@ import { Glass } from "@/src/components/glass";
 import { Chip, EmptyState, IconButton } from "@/src/components/ui";
 import { ListingCard } from "@/src/components/listing-card";
 import { FilterSheet, countActiveFilters } from "@/src/components/filter-sheet";
+import { ArtFrame } from "@/src/components/line-art";
 import { formatPrice, PERIOD_SHORT } from "@/src/currency";
 
 const PERIODS: { key: "" | Period; label: string }[] = [
@@ -204,6 +205,9 @@ export default function Explore() {
         <View style={styles.center} pointerEvents="none">
           <Glass strong style={styles.emptyGlass}>
             <EmptyState icon="home-outline" title="No homes found in this area" subtitle="Try another search or clear filters." testID="explore-empty" />
+            <View style={{ alignItems: "center", paddingBottom: spacing.lg }}>
+              <ArtFrame name="explore" size={140} />
+            </View>
           </Glass>
         </View>
       )}

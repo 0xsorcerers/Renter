@@ -10,10 +10,13 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, fileUrl, type Listing, type Offer, type OfferStatus, type Review } from "@/src/api";
+import { api, fileUrl, type Conversation, type Listing, type Offer, type OfferStatus, type Review } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { useFavorite } from "@/src/use-favorite";
 import { OfferStatusBadge } from "@/src/components/offer-status";
+import { shareListing } from "@/src/share";
+import { VideoTour } from "@/src/components/video-tour";
+import { LineArt } from "@/src/components/line-art";
 import { PriceTag } from "@/src/components/price-tag";
 import { Glass } from "@/src/components/glass";
 import { AppMap } from "@/src/components/app-map";
@@ -83,6 +86,32 @@ export default function ListingDetail() {
     onError: (e: any) => toast.show(e.message, "error"),
   });
 
+  const setStatus = useMutation({
+    mutationFn: (status: "rented" | "available") => api<Listing>(`/listings/${id}`, { method: "PATCH", body: { status } }),
+    onSuccess: (_d, status) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      qc.invalidateQueries({ queryKey: ["listing", id] });
+      qc.invalidateQueries({ queryKey: ["listings"] });
+      qc.invalidateQueries({ queryKey: ["offers"] });
+      toast.show(status === "rented" ? "Marked as rented — it's off Explore and pending offers are closed" : "Listing is available again", "success");
+    },
+    onError: (e: any) => toast.show(e.message, "error"),
+  });
+
+  const openChat = useMutation({
+    mutationFn: (tenantId?: string) => api<Conversation>("/conversations", { method: "POST", body: { listing_id: id, tenant_id: tenantId } }),
+    onSuccess: (c) => router.push(`/chat/${c.conversation_id}`),
+    onError: (e: any) => toast.show(e.message, "error"),
+  });
+
+  const onShare = async () => {
+    try {
+      await shareListing(listing.data!);
+    } catch (e: any) {
+      toast.show(e?.message ?? "Could not share", "error");
+    }
+  };
+
   const removeListing = useMutation({
     mutationFn: () => api(`/listings/${id}`, { method: "DELETE" }),
     onSuccess: () => {
@@ -112,6 +141,8 @@ export default function ListingDetail() {
   const isTenant = user?.role === "tenant";
   const isOwner = l.is_mine;
   const photos = l.photos?.length ? l.photos : [];
+  const isRented = l.status === "rented";
+  const myAccepted = (offers.data ?? []).find((o) => o.tenant_id === user?.user_id && o.status === "accepted");
   const heroH = Math.min(width * 0.85, 420);
   const barHeight = 84 + insets.bottom;
 
@@ -140,6 +171,7 @@ export default function ListingDetail() {
           <View style={[styles.heroTopRow, { top: insets.top + spacing.sm }]}>
             <IconButton testID="listing-back-button" icon="chevron-back" onPress={() => router.back()} bg={colors.glassStrong} />
             <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <IconButton testID="listing-share-button" icon="share-social-outline" onPress={onShare} bg={colors.glassStrong} />
               {!isOwner && (
                 <IconButton
                   testID="listing-favorite-button"
@@ -160,8 +192,16 @@ export default function ListingDetail() {
             </View>
           )}
           <View style={styles.heroBottom}>
-            <View style={styles.typePill}>
-              <Text style={styles.typeText}>{l.property_type}</Text>
+            <View style={{ flexDirection: "row", gap: spacing.sm }}>
+              <View style={styles.typePill}>
+                <Text style={styles.typeText}>{l.property_type}</Text>
+              </View>
+              {isRented && (
+                <View style={styles.rentedPill} testID="listing-rented-pill">
+                  <Ionicons name="checkmark-done" size={12} color={colors.onSurfaceInverse} />
+                  <Text style={styles.rentedPillText}>RENTED</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.heroTitle} testID="listing-title">
               {l.title}
@@ -170,6 +210,19 @@ export default function ListingDetail() {
         </View>
 
         <View style={styles.body}>
+          {isRented && (
+            <View style={styles.rentedCard} testID="listing-rented-banner">
+              <LineArt name="rented" opacity={0.5} fade={false} align="center" style={{ left: "55%" }} />
+              <View style={{ gap: 4, maxWidth: "60%" }}>
+                <Text style={styles.rentedTitle}>This home has been rented</Text>
+                <Text style={styles.rentedSub}>{isOwner ? "It's hidden from Explore and pending offers were closed." : "Keep exploring — new homes are posted every day."}</Text>
+                {isOwner && <Button testID="listing-relist-button" title="Make available again" small variant="ghost" loading={setStatus.isPending} onPress={() => setStatus.mutate("available")} style={{ alignSelf: "flex-start", marginTop: spacing.sm }} />}
+              </View>
+            </View>
+          )}
+          {isOwner && !isRented && (
+            <Button testID="listing-mark-rented-button" title="Mark as rented" icon="checkmark-done" variant="dark" loading={setStatus.isPending} onPress={() => setStatus.mutate("rented")} />
+          )}
           <View style={styles.priceCard} testID="listing-price-card">
             <Text style={styles.priceLabel}>{PERIOD_TITLE[l.period]} rent · {l.currency}</Text>
             <PriceTag amount={l.price} symbol={l.currency_symbol} currency={l.currency} period={l.period} size="lg" testID="listing-price" />
@@ -208,6 +261,13 @@ export default function ListingDetail() {
             <Text style={styles.mapsLinkText}>Open in Google Maps</Text>
           </Pressable>
 
+          {l.video ? (
+            <View style={{ gap: spacing.md }}>
+              <SectionTitle title="Virtual tour" />
+              <VideoTour uri={l.video} testID="listing-video-tour" />
+            </View>
+          ) : null}
+
           {l.description ? (
             <View>
               <SectionTitle title="About this home" />
@@ -232,12 +292,12 @@ export default function ListingDetail() {
             <SectionTitle
               title={`Tenant offers (${offers.data?.length ?? 0})`}
               right={
-                isTenant ? (
+                isTenant && !isRented ? (
                   <Button testID="open-offer-form-button" title={showOffer ? "Close" : "Make offer"} small variant="secondary" onPress={() => setShowOffer((s) => !s)} />
                 ) : undefined
               }
             />
-            {showOffer && isTenant && (
+            {showOffer && isTenant && !isRented && (
               <View style={styles.formCard} testID="offer-form">
                 <Text style={styles.formHint}>
                   Your offer is {PERIOD_LABEL[l.period]} in {l.currency} — same terms as the listing.
@@ -307,7 +367,23 @@ export default function ListingDetail() {
                       />
                     </View>
                   )}
-                  {isOwner && o.tenant && <ContactButtons phone={o.tenant.phone} whatsapp={o.tenant.whatsapp} small message={`Hi ${o.tenant.name}, about your offer on "${l.title}"`} />}
+                  {isOwner && o.tenant && (
+                    <View style={{ gap: spacing.sm }}>
+                      <Button
+                        testID={`offer-message-${o.offer_id}`}
+                        title={`Message ${o.tenant.name.split(" ")[0]}`}
+                        icon="chatbubble-ellipses"
+                        small
+                        variant="secondary"
+                        loading={openChat.isPending && openChat.variables === o.tenant_id}
+                        onPress={() => openChat.mutate(o.tenant_id)}
+                      />
+                      <ContactButtons phone={o.tenant.phone} whatsapp={o.tenant.whatsapp} small message={`Hi ${o.tenant.name}, about your offer on "${l.title}"`} />
+                    </View>
+                  )}
+                  {!isOwner && o.tenant_id === user?.user_id && o.status === "accepted" && (
+                    <Button testID={`offer-chat-owner-${o.offer_id}`} title="Message homeowner" icon="chatbubble-ellipses" small loading={openChat.isPending} onPress={() => openChat.mutate(undefined)} />
+                  )}
                 </View>
               ))}
             </View>
@@ -350,7 +426,14 @@ export default function ListingDetail() {
               <PriceTag amount={l.price} symbol={l.currency_symbol} currency={l.currency} period={l.period} size="sm" />
             </View>
             {isOwner ? (
-              <Button title="Your listing" small variant="ghost" disabled />
+              <Button testID="listing-owner-inbox-button" title="Inbox" icon="chatbubbles" small variant="secondary" onPress={() => router.push("/chat")} />
+            ) : isRented ? (
+              <Button title="Rented" small variant="ghost" disabled />
+            ) : myAccepted ? (
+              <View style={{ flex: 1.4, flexDirection: "row", gap: spacing.sm }}>
+                <Button testID="sticky-chat-button" title="Chat" icon="chatbubble-ellipses" small style={{ flex: 1 }} loading={openChat.isPending} onPress={() => openChat.mutate(undefined)} />
+                <ContactButtons phone={l.owner?.phone} whatsapp={l.owner?.whatsapp} small style={{ flex: 1.6 }} message={`Hi ${l.owner?.name ?? ""}, I'm interested in "${l.title}" on Renter.`} />
+              </View>
             ) : (
               <ContactButtons phone={l.owner?.phone} whatsapp={l.owner?.whatsapp} small style={{ flex: 1.4 }} message={`Hi ${l.owner?.name ?? ""}, I'm interested in "${l.title}" on Renter.`} />
             )}
@@ -386,6 +469,11 @@ const useStyles = makeStyles((colors, r) => ({
   heroBottom: { position: "absolute", left: spacing.lg, right: spacing.lg, bottom: spacing.lg, gap: spacing.sm },
   typePill: { alignSelf: "flex-start", backgroundColor: colors.brandSecondary, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 26, justifyContent: "center" },
   typeText: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "800", color: colors.onBrandSecondary, textTransform: "capitalize" },
+  rentedPill: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.surfaceInverse, borderRadius: radius.pill, paddingHorizontal: spacing.md, height: 26 },
+  rentedPillText: { fontFamily: fonts.family, fontSize: r.ms(11), fontWeight: "800", color: colors.onSurfaceInverse, letterSpacing: 0.6 },
+  rentedCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, position: "relative", overflow: "hidden", minHeight: 120, justifyContent: "center" },
+  rentedTitle: { fontFamily: fonts.family, fontSize: r.ms(17), fontWeight: "800", color: colors.onSurface },
+  rentedSub: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.muted, lineHeight: r.ms(18) },
   heroTitle: { fontFamily: fonts.family, fontSize: r.ms(26), fontWeight: "800", color: colors.onSurfaceInverse, letterSpacing: -0.5 },
   body: { padding: spacing.lg, gap: spacing.xl, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   priceCard: { backgroundColor: colors.brandTertiary, borderRadius: radius.lg, padding: spacing.lg, gap: 6 },

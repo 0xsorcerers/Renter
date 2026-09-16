@@ -31,7 +31,7 @@ export function ListingCard({ listing, compact, glass, width, testID }: Props) {
           </View>
         )}
         <View style={styles.typePill}>
-          <Text style={styles.typeText}>{listing.property_type}</Text>
+          <Text style={styles.typeText}>{listing.status === "rented" ? "Rented" : listing.property_type}</Text>
         </View>
         {listing.rating != null && (
           <View style={styles.ratingPill}>

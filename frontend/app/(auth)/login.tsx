@@ -13,6 +13,7 @@ import { useAuth } from "@/src/auth-context";
 import { Button, Field } from "@/src/components/ui";
 import { Glass } from "@/src/components/glass";
 import { useToast } from "@/src/components/toast";
+import { LineArt } from "@/src/components/line-art";
 
 export default function Login() {
   const styles = useStyles();
@@ -41,6 +42,7 @@ export default function Login() {
   return (
     <View style={styles.root} testID="login-screen">
       <LinearGradient colors={[colors.accentMint, colors.surface, colors.accentLemon]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bg} />
+      <LineArt name="welcome" opacity={0.35} fade={false} align="bottom" fit="contain" style={{ top: "58%" }} />
       <View style={[styles.blob, styles.blobA]} />
       <View style={[styles.blob, styles.blobB]} />
       <KeyboardAwareScrollView

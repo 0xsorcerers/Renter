@@ -12,6 +12,7 @@ export function OfferStatusBadge({ status, testID }: { status: OfferStatus; test
     pending: { bg: colors.accentLemon, fg: colors.onAccentLemon, icon: "time-outline" as const, label: "Pending" },
     accepted: { bg: colors.success, fg: colors.onSuccess, icon: "checkmark-circle" as const, label: "Accepted" },
     declined: { bg: colors.surfaceTertiary, fg: colors.muted, icon: "close-circle" as const, label: "Declined" },
+    closed: { bg: colors.surfaceTertiary, fg: colors.muted, icon: "lock-closed" as const, label: "Closed" },
   }[status ?? "pending"];
   return (
     <View testID={testID} style={[styles.badge, { backgroundColor: map.bg }]}>

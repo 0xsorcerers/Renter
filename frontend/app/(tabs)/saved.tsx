@@ -9,6 +9,7 @@ import { api, type Listing } from "@/src/api";
 import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { ListingCard } from "@/src/components/listing-card";
 import { EmptyState } from "@/src/components/ui";
+import { LineArt } from "@/src/components/line-art";
 
 export default function Saved() {
   const styles = useStyles();
@@ -21,6 +22,7 @@ export default function Saved() {
   return (
     <View style={styles.root} testID="saved-screen">
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <LineArt name="saved" opacity={0.2} fade={false} align="center" style={{ left: "45%" }} />
         <Text style={styles.eyebrow}>Favourites</Text>
         <Text style={styles.title}>Saved homes</Text>
       </View>
@@ -49,7 +51,7 @@ export default function Saved() {
 
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider, gap: 2 },
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider, gap: 2, position: "relative", overflow: "hidden" },
   eyebrow: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.brandPrimary, letterSpacing: 1, textTransform: "uppercase" },
   title: { fontFamily: fonts.family, fontSize: r.ms(28), fontWeight: "800", color: colors.onSurface, letterSpacing: -0.5 },
   list: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },

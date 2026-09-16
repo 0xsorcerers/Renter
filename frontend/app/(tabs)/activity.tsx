@@ -1,16 +1,18 @@
 import React from "react";
 import { ActivityIndicator, FlatList, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, type Listing, type Offer } from "@/src/api";
+import { api, type Conversation, type Listing, type Offer } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { ListingCard } from "@/src/components/listing-card";
 import { Button, EmptyState } from "@/src/components/ui";
+import { LineArt } from "@/src/components/line-art";
+import { useToast } from "@/src/components/toast";
 import { PriceTag } from "@/src/components/price-tag";
 import { OfferStatusBadge } from "@/src/components/offer-status";
 
@@ -20,6 +22,7 @@ export default function Activity() {
   const insets = useSafeAreaInsets();
   const bottomChrome = useTabBottomChrome();
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
   const isOwner = user?.role === "homeowner";
 
@@ -35,6 +38,14 @@ export default function Activity() {
     refetchInterval: 15000,
   });
 
+  const unread = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("/conversations/unread"), refetchInterval: 15000 });
+
+  const openChat = useMutation({
+    mutationFn: (listingId: string) => api<Conversation>("/conversations", { method: "POST", body: { listing_id: listingId } }),
+    onSuccess: (c) => router.push(`/chat/${c.conversation_id}`),
+    onError: (e: any) => toast.show(e.message, "error"),
+  });
+
   const loading = isOwner ? myListings.isLoading : myOffers.isLoading;
   const refetch = isOwner ? myListings.refetch : myOffers.refetch;
 
@@ -43,14 +54,27 @@ export default function Activity() {
       <Text style={styles.eyebrow}>{isOwner ? "Homeowner hub" : "Tenant hub"}</Text>
       <View style={styles.titleRow}>
         <Text style={styles.title}>{isOwner ? "My listings" : "My offers"}</Text>
-        {isOwner && <Button testID="activity-create-listing-button" title="New" icon="add" small onPress={() => router.push("/listing/create")} />}
+        <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+          <Pressable testID="activity-inbox-button" onPress={() => router.push("/chat")} style={styles.inboxBtn}>
+            <Ionicons name="chatbubbles" size={20} color={colors.onSurface} />
+            {(unread.data?.unread ?? 0) > 0 && (
+              <View style={styles.unreadBadge} testID="activity-unread-badge">
+                <Text style={styles.unreadText}>{unread.data!.unread}</Text>
+              </View>
+            )}
+          </Pressable>
+          {isOwner && <Button testID="activity-create-listing-button" title="New" icon="add" small onPress={() => router.push("/listing/create")} />}
+        </View>
       </View>
     </View>
   );
 
   return (
     <View style={styles.root} testID="activity-screen">
-      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>{Header}</View>
+      <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <LineArt name="activity" opacity={0.2} fade={false} align="center" style={{ left: "45%" }} />
+        {Header}
+      </View>
       {isOwner ? (
         <FlatList
           data={myListings.data ?? []}
@@ -109,8 +133,19 @@ export default function Activity() {
                 )}
               </View>
               {item.message ? <Text style={styles.offerMsg}>“{item.message}”</Text> : null}
-              {item.status === "accepted" && item.listing?.owner_id && (
-                <Text style={styles.acceptedHint}>🎉 The homeowner accepted — open the listing to call or WhatsApp them.</Text>
+              {item.status === "accepted" && (
+                <View style={{ gap: spacing.sm, marginTop: spacing.xs }}>
+                  <Text style={styles.acceptedHint}>🎉 The homeowner accepted your offer.</Text>
+                  <Button
+                    testID={`my-offer-chat-${item.offer_id}`}
+                    title="Message homeowner"
+                    icon="chatbubble-ellipses"
+                    small
+                    loading={openChat.isPending && openChat.variables === item.listing_id}
+                    onPress={() => openChat.mutate(item.listing_id)}
+                    style={{ alignSelf: "flex-start" }}
+                  />
+                </View>
               )}
             </Pressable>
           )}
@@ -129,7 +164,10 @@ export default function Activity() {
 
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
-  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.divider, position: "relative", overflow: "hidden" },
+  inboxBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.surfaceSecondary, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
+  unreadBadge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.brandPrimary, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  unreadText: { fontFamily: fonts.family, fontSize: r.ms(10), fontWeight: "800", color: colors.onBrandPrimary },
   headerInner: { gap: 2 },
   eyebrow: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.brandPrimary, letterSpacing: 1, textTransform: "uppercase" },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },

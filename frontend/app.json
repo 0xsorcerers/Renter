@@ -25,7 +25,12 @@
         "backgroundColor": "#00A87D"
       },
       "package": "com.emergent.directhousing.xybiz4",
-      "permissions": ["android.permission.READ_MEDIA_IMAGES", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyBHNCwzbEmRACZ0ztnn9GJI_cctBKmKNO4"
@@ -65,7 +70,8 @@
           "locationWhenInUsePermission": "Find homes for rent near you"
         }
       ],
-      "@react-native-vector-icons/ionicons"
+      "@react-native-vector-icons/ionicons",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true

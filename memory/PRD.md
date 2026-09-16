@@ -40,7 +40,12 @@ See `/app/memory/test_credentials.md` (owner@renter.app / tenant@renter.app, Pas
 - [x] Create listing: photo upload, address autocomplete, auto currency + override, period segmented control, sticky publish
 - [x] Profiles (own + public) with bio, phone, WhatsApp, stats, reviews; edit profile with avatar upload
 - [x] Activity: homeowner listings / tenant offers
-- [x] Tested end-to-end by testing agent (iteration_1 & iteration_2: all pass)
+- [x] In-app chat (conversations/messages, polling, unread badges; tenant needs accepted offer, owner can message any offerer)
+- [x] Mark as rented / relist (hidden from Explore, pending offers closed, offers blocked)
+- [x] Virtual tour video (≤60s / 50MB via object storage, expo-video player)
+- [x] Share listing (native share sheet; wa.me fallback on web)
+- [x] AI-generated line-art exhibition backdrops (assets/images/art, generated with Gemini via gen_art.py)
+- [x] Tested end-to-end by testing agent (iterations 1–3: all pass)
 
 ## Known constraints
 - Google key has **no billing** → Places/Geocoding denied; backend falls back to OpenStreetMap. Enable billing + "Places API" + "Geocoding API" in Google Cloud to use Google results.
@@ -48,7 +53,6 @@ See `/app/memory/test_credentials.md` (owner@renter.app / tenant@renter.app, Pas
 - Google login only testable on device / real browser flow.
 
 ## Backlog
-- P1: In-app chat between tenant and owner
 - P2: Featured listings / paid boost (user deferred — needs payment provider decision)
-- P2: Listing availability calendar, mark as rented
-- P2: Push notifications for new offers/replies (on request only)
+- P2: Listing availability calendar
+- P2: Push notifications for new messages/offers (on request only)

@@ -63,6 +63,10 @@ export function fileUrl(pathOrUrl: string) {
 }
 
 export async function uploadImage(uri: string, name = "photo.jpg", type = "image/jpeg") {
+  return uploadFile(uri, name, type);
+}
+
+export async function uploadFile(uri: string, name: string, type: string) {
   const form = new FormData();
   if (Platform.OS === "web") {
     const blob = await (await fetch(uri)).blob();
@@ -136,9 +140,32 @@ export interface Listing {
   is_mine: boolean;
   is_favorited: boolean;
   distance_km: number | null;
+  status: "available" | "rented";
+  video: string | null;
 }
 
-export type OfferStatus = "pending" | "accepted" | "declined";
+export type OfferStatus = "pending" | "accepted" | "declined" | "closed";
+
+export interface Conversation {
+  conversation_id: string;
+  listing_id: string;
+  owner_id: string;
+  tenant_id: string;
+  last_message: string;
+  last_message_at: string;
+  created_at: string;
+  other: UserSummary | null;
+  listing: { listing_id: string; title: string; photos: string[]; status?: string } | null;
+  unread: number;
+}
+
+export interface Message {
+  message_id: string;
+  conversation_id: string;
+  sender_id: string;
+  text: string;
+  created_at: string;
+}
 
 export interface ListingFilters {
   q?: string;

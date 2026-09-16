@@ -182,6 +182,23 @@ class ListingCreate(BaseModel):
     bedrooms: int = 1
     bathrooms: int = 1
     photos: List[str] = []
+    video: Optional[str] = None
+
+
+class ListingPatch(BaseModel):
+    status: Optional[Literal["available", "rented"]] = None
+    video: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = Field(default=None, gt=0)
+
+
+class ConversationCreate(BaseModel):
+    listing_id: str
+    tenant_id: Optional[str] = None
+
+
+class MessageCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
 
 
 class OfferCreate(BaseModel):
@@ -502,13 +519,16 @@ async def search_places(q: str = Query(min_length=2)):
 @api.post("/upload")
 async def upload(file: UploadFile = File(...), user: dict = Depends(current_user)):
     data = await file.read()
-    if len(data) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Image too large (max 8MB)")
-    ext = (file.filename or "img.jpg").rsplit(".", 1)[-1].lower()
-    if ext not in {"jpg", "jpeg", "png", "webp", "heic", "gif"}:
-        ext = "jpg"
-    path = f"{APP_NAME}/uploads/{user['user_id']}/{uuid.uuid4().hex}.{ext}"
     content_type = file.content_type or "image/jpeg"
+    is_video = content_type.startswith("video/")
+    limit = 50 * 1024 * 1024 if is_video else 8 * 1024 * 1024
+    if len(data) > limit:
+        raise HTTPException(status_code=413, detail="Video too large (max 50MB)" if is_video else "Image too large (max 8MB)")
+    ext = (file.filename or "img.jpg").rsplit(".", 1)[-1].lower()
+    allowed = {"mp4", "mov", "m4v", "webm"} if is_video else {"jpg", "jpeg", "png", "webp", "heic", "gif"}
+    if ext not in allowed:
+        ext = "mp4" if is_video else "jpg"
+    path = f"{APP_NAME}/uploads/{user['user_id']}/{uuid.uuid4().hex}.{ext}"
     result = await run_in_threadpool(put_object, path, data, content_type)
     await db.files.insert_one({
         "file_id": new_id("file"),
@@ -557,6 +577,8 @@ async def decorate_listing(doc: dict, viewer: Optional[dict] = None) -> dict:
         viewer and await db.favorites.find_one({"user_id": viewer["user_id"], "listing_id": doc["listing_id"], "deleted_at": None})
     )
     doc.setdefault("distance_km", None)
+    doc.setdefault("status", "available")
+    doc.setdefault("video", None)
     return doc
 
 
@@ -571,6 +593,7 @@ async def create_listing(body: ListingCreate, user: dict = Depends(current_user)
         "owner_id": user["user_id"],
         "currency": cur["code"],
         "currency_symbol": cur["symbol"],
+        "status": "available",
         "created_at": now(),
         "deleted_at": None,
     })
@@ -595,6 +618,8 @@ async def list_listings(
     viewer: Optional[dict] = Depends(optional_user),
 ):
     filt: dict = {"deleted_at": None}
+    if not mine and not owner_id:
+        filt["status"] = {"$ne": "rented"}
     if min_price is not None or max_price is not None:
         price_f: dict = {}
         if min_price is not None:
@@ -670,6 +695,26 @@ async def get_listing(listing_id: str, viewer: Optional[dict] = Depends(optional
     return await decorate_listing(doc, viewer)
 
 
+@api.patch("/listings/{listing_id}")
+async def patch_listing(listing_id: str, body: ListingPatch, user: dict = Depends(current_user)):
+    doc = await db.listings.find_one({"listing_id": listing_id, "deleted_at": None}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    if doc["owner_id"] != user["user_id"]:
+        raise HTTPException(status_code=403, detail="Only the homeowner can edit this listing")
+    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    if updates.get("status") == "rented":
+        await db.offers.update_many(
+            {"listing_id": listing_id, "deleted_at": None, "status": {"$in": ["pending", None]}},
+            {"$set": {"status": "closed", "responded_at": now()}},
+        )
+        updates["rented_at"] = now()
+    if updates:
+        await db.listings.update_one({"listing_id": listing_id}, {"$set": updates})
+    doc = await db.listings.find_one({"listing_id": listing_id}, {"_id": 0})
+    return await decorate_listing(doc, user)
+
+
 @api.delete("/listings/{listing_id}")
 async def delete_listing(listing_id: str, user: dict = Depends(current_user)):
     res = await db.listings.update_one({"listing_id": listing_id, "owner_id": user["user_id"]}, {"$set": {"deleted_at": now()}})
@@ -681,7 +726,7 @@ async def delete_listing(listing_id: str, user: dict = Depends(current_user)):
 # ---------------------------------------------------------------------------
 # Offers
 # ---------------------------------------------------------------------------
-OfferStatus = Literal["pending", "accepted", "declined"]
+OfferStatus = Literal["pending", "accepted", "declined", "closed"]
 
 
 class OfferStatusBody(BaseModel):
@@ -713,6 +758,8 @@ async def create_offer(listing_id: str, body: OfferCreate, user: dict = Depends(
     listing = await db.listings.find_one({"listing_id": listing_id, "deleted_at": None}, {"_id": 0})
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
+    if listing.get("status") == "rented":
+        raise HTTPException(status_code=409, detail="This home has already been rented")
     offer = {
         "offer_id": new_id("off"),
         "listing_id": listing_id,
@@ -814,6 +861,118 @@ async def reply_review(review_id: str, body: ReplyCreate, user: dict = Depends(c
     reply.pop("_id", None)
     reply["author"] = user_summary(user)
     return reply
+
+
+# ---------------------------------------------------------------------------
+# Chat
+# ---------------------------------------------------------------------------
+async def decorate_conversation(c: dict, viewer_id: str) -> dict:
+    other_id = c["tenant_id"] if viewer_id == c["owner_id"] else c["owner_id"]
+    c["other"] = user_summary(await get_user(other_id))
+    listing = await db.listings.find_one({"listing_id": c["listing_id"]}, {"_id": 0, "listing_id": 1, "title": 1, "photos": 1, "status": 1})
+    c["listing"] = listing
+    last_read = (c.get("reads") or {}).get(viewer_id)
+    unread_f: dict = {"conversation_id": c["conversation_id"], "sender_id": {"$ne": viewer_id}}
+    if last_read:
+        if last_read.tzinfo is None:
+            last_read = last_read.replace(tzinfo=timezone.utc)
+        unread_f["created_at"] = {"$gt": last_read}
+    c["unread"] = await db.messages.count_documents(unread_f)
+    c.pop("reads", None)
+    return c
+
+
+@api.post("/conversations")
+async def open_conversation(body: ConversationCreate, user: dict = Depends(current_user)):
+    listing = await db.listings.find_one({"listing_id": body.listing_id, "deleted_at": None}, {"_id": 0})
+    if not listing:
+        raise HTTPException(status_code=404, detail="Listing not found")
+    owner_id = listing["owner_id"]
+    if user["user_id"] == owner_id:
+        tenant_id = body.tenant_id
+        if not tenant_id:
+            raise HTTPException(status_code=400, detail="tenant_id is required")
+        has_offer = await db.offers.find_one({"listing_id": body.listing_id, "tenant_id": tenant_id, "deleted_at": None})
+        if not has_offer:
+            raise HTTPException(status_code=403, detail="You can only message tenants who made an offer")
+    else:
+        tenant_id = user["user_id"]
+        accepted = await db.offers.find_one({"listing_id": body.listing_id, "tenant_id": tenant_id, "status": "accepted", "deleted_at": None})
+        existing_conv = await db.conversations.find_one({"listing_id": body.listing_id, "tenant_id": tenant_id, "owner_id": owner_id})
+        if not accepted and not existing_conv:
+            raise HTTPException(status_code=403, detail="Chat opens once the homeowner accepts your offer")
+    conv = await db.conversations.find_one({"listing_id": body.listing_id, "tenant_id": tenant_id, "owner_id": owner_id}, {"_id": 0})
+    if not conv:
+        conv = {
+            "conversation_id": new_id("conv"),
+            "listing_id": body.listing_id,
+            "owner_id": owner_id,
+            "tenant_id": tenant_id,
+            "last_message": "",
+            "last_message_at": now(),
+            "reads": {},
+            "created_at": now(),
+        }
+        await db.conversations.insert_one(conv)
+        conv.pop("_id", None)
+    return await decorate_conversation(conv, user["user_id"])
+
+
+@api.get("/conversations")
+async def my_conversations(user: dict = Depends(current_user)):
+    convs = await db.conversations.find(
+        {"$or": [{"owner_id": user["user_id"]}, {"tenant_id": user["user_id"]}]}, {"_id": 0}
+    ).sort("last_message_at", -1).to_list(200)
+    return [await decorate_conversation(c, user["user_id"]) for c in convs]
+
+
+@api.get("/conversations/unread")
+async def unread_total(user: dict = Depends(current_user)):
+    convs = await db.conversations.find({"$or": [{"owner_id": user["user_id"]}, {"tenant_id": user["user_id"]}]}, {"_id": 0}).to_list(200)
+    total = 0
+    for c in convs:
+        total += (await decorate_conversation(c, user["user_id"]))["unread"]
+    return {"unread": total}
+
+
+async def get_my_conversation(conversation_id: str, user: dict) -> dict:
+    conv = await db.conversations.find_one({"conversation_id": conversation_id}, {"_id": 0})
+    if not conv or user["user_id"] not in (conv["owner_id"], conv["tenant_id"]):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    return conv
+
+
+@api.get("/conversations/{conversation_id}")
+async def get_conversation(conversation_id: str, user: dict = Depends(current_user)):
+    conv = await get_my_conversation(conversation_id, user)
+    return await decorate_conversation(conv, user["user_id"])
+
+
+@api.get("/conversations/{conversation_id}/messages")
+async def list_messages(conversation_id: str, user: dict = Depends(current_user)):
+    await get_my_conversation(conversation_id, user)
+    msgs = await db.messages.find({"conversation_id": conversation_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    await db.conversations.update_one({"conversation_id": conversation_id}, {"$set": {f"reads.{user['user_id']}": now()}})
+    return msgs
+
+
+@api.post("/conversations/{conversation_id}/messages")
+async def send_message(conversation_id: str, body: MessageCreate, user: dict = Depends(current_user)):
+    await get_my_conversation(conversation_id, user)
+    msg = {
+        "message_id": new_id("msg"),
+        "conversation_id": conversation_id,
+        "sender_id": user["user_id"],
+        "text": body.text.strip(),
+        "created_at": now(),
+    }
+    await db.messages.insert_one(msg)
+    msg.pop("_id", None)
+    await db.conversations.update_one(
+        {"conversation_id": conversation_id},
+        {"$set": {"last_message": msg["text"][:120], "last_message_at": msg["created_at"], f"reads.{user['user_id']}": now()}},
+    )
+    return msg
 
 
 # ---------------------------------------------------------------------------
@@ -921,6 +1080,8 @@ async def on_startup():
     await db.reviews.create_index("listing_id")
     await db.files.create_index("storage_path")
     await db.favorites.create_index([("user_id", 1), ("listing_id", 1)], unique=True)
+    await db.conversations.create_index("conversation_id", unique=True)
+    await db.messages.create_index([("conversation_id", 1), ("created_at", 1)])
     try:
         await run_in_threadpool(init_storage)
     except Exception as e:

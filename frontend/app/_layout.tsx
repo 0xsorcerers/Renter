@@ -53,6 +53,8 @@ function Gate() {
       <Stack.Screen name="listing/create" options={{ presentation: "modal" }} />
       <Stack.Screen name="user/[id]" />
       <Stack.Screen name="profile/edit" options={{ presentation: "modal" }} />
+      <Stack.Screen name="chat/index" />
+      <Stack.Screen name="chat/[id]" />
     </Stack>
   );
 }

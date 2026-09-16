@@ -12,6 +12,7 @@ import { useAuth } from "@/src/auth-context";
 import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { Avatar, Button, EmptyState, RoleBadge, SectionTitle } from "@/src/components/ui";
 import { ReviewCard } from "@/src/components/reviews";
+import { LineArt } from "@/src/components/line-art";
 
 export default function Profile() {
   const styles = useStyles();
@@ -39,6 +40,7 @@ export default function Profile() {
     <View style={styles.root} testID="profile-screen">
       <ScrollView contentContainerStyle={{ paddingBottom: bottomChrome + spacing.xl }}>
         <LinearGradient colors={[colors.accentLemon, colors.accentMint, colors.surface]} style={[styles.hero, { paddingTop: insets.top + spacing.lg }]}>
+          <LineArt name="profile" opacity={0.3} fade={false} align="bottom" />
           <View style={styles.heroTop}>
             <Text style={styles.heroTitle}>My profile</Text>
             <Button testID="profile-edit-button" title="Edit" icon="create-outline" variant="dark" small onPress={() => router.push("/profile/edit")} />
@@ -124,7 +126,7 @@ function Row({ icon, label, value, testID }: { icon: any; label: string; value: 
 
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
-  hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, alignItems: "center", gap: spacing.sm },
+  hero: { paddingHorizontal: spacing.lg, paddingBottom: spacing.xl, alignItems: "center", gap: spacing.sm, position: "relative", overflow: "hidden" },
   heroTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", alignSelf: "stretch", marginBottom: spacing.md },
   heroTitle: { fontFamily: fonts.family, fontSize: r.ms(24), fontWeight: "800", color: colors.onSurface },
   avatarWrap: { padding: 4, borderRadius: 60, backgroundColor: colors.surface },

@@ -10,9 +10,11 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import * as Haptics from "expo-haptics";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, fileUrl, uploadImage, type Currency, type Listing, type Period, type PlaceResult } from "@/src/api";
+import { api, fileUrl, uploadImage, uploadFile, type Currency, type Listing, type Period, type PlaceResult } from "@/src/api";
 import { Button, Chip, Field, IconButton } from "@/src/components/ui";
 import { Glass } from "@/src/components/glass";
+import { VideoTour } from "@/src/components/video-tour";
+import { LineArt } from "@/src/components/line-art";
 import { useToast } from "@/src/components/toast";
 import { AppMap } from "@/src/components/app-map";
 import { PERIOD_LABEL, formatPrice } from "@/src/currency";
@@ -41,6 +43,8 @@ export default function CreateListing() {
   const [bedrooms, setBedrooms] = useState(1);
   const [bathrooms, setBathrooms] = useState(1);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [video, setVideo] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [currencyOverride, setCurrencyOverride] = useState<Currency | null>(null);
   const [showCurrency, setShowCurrency] = useState(false);
@@ -99,6 +103,30 @@ export default function CreateListing() {
     }
   };
 
+  const pickVideo = async () => {
+    const current = await ImagePicker.getMediaLibraryPermissionsAsync();
+    let status = current.status;
+    if (status !== "granted") {
+      if (current.canAskAgain) status = (await ImagePicker.requestMediaLibraryPermissionsAsync()).status;
+      if (status !== "granted") return setPermissionHelp(true);
+    }
+    const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["videos"], videoMaxDuration: 60, quality: 0.6 });
+    if (res.canceled) return;
+    const a = res.assets[0];
+    if (a.duration && a.duration > 61000) return toast.show("Keep the tour under 60 seconds", "error");
+    if (a.fileSize && a.fileSize > 50 * 1024 * 1024) return toast.show("Video must be under 50 MB", "error");
+    setUploadingVideo(true);
+    try {
+      const up = await uploadFile(a.uri, a.fileName ?? "tour.mp4", a.mimeType ?? "video/mp4");
+      setVideo(up.url);
+      toast.show("Virtual tour added", "success");
+    } catch (e: any) {
+      toast.show(e.status === 413 ? "Video must be under 50 MB" : e.message ?? "Upload failed", "error");
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
   const create = useMutation({
     mutationFn: () =>
       api<Listing>("/listings", {
@@ -119,6 +147,7 @@ export default function CreateListing() {
           bedrooms,
           bathrooms,
           photos,
+          video,
         },
       }),
     onSuccess: (l) => {
@@ -142,6 +171,7 @@ export default function CreateListing() {
   return (
     <View style={styles.root} testID="create-listing-screen">
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
+        <LineArt name="create" opacity={0.22} fade={false} align="center" />
         <IconButton testID="create-back-button" icon="close" onPress={() => router.back()} />
         <Text style={styles.headerTitle}>List a home</Text>
         <View style={{ width: 44 }} />
@@ -163,6 +193,23 @@ export default function CreateListing() {
             </View>
           ))}
         </ScrollView>
+
+        {/* Video tour */}
+        <Text style={styles.label}>Virtual tour (optional, up to 60s)</Text>
+        {video ? (
+          <View style={{ gap: spacing.sm }}>
+            <VideoTour uri={video} testID="create-video-preview" />
+            <Button testID="remove-video-button" title="Remove video" icon="trash-outline" variant="ghost" small onPress={() => setVideo(null)} style={{ alignSelf: "flex-start" }} />
+          </View>
+        ) : (
+          <Pressable testID="add-video-button" onPress={pickVideo} disabled={uploadingVideo} style={styles.videoBtn}>
+            {uploadingVideo ? <ActivityIndicator color={colors.brandPrimary} /> : <Ionicons name="videocam" size={22} color={colors.onBrandTertiary} />}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.videoTitle}>{uploadingVideo ? "Uploading tour…" : "Add a walkthrough video"}</Text>
+              <Text style={styles.videoSub}>Let tenants tour the home before visiting. Max 60s / 50 MB.</Text>
+            </View>
+          </Pressable>
+        )}
 
         <Field testID="create-title-input" label="Title" placeholder="Sunny 2-bed with rooftop" value={title} onChangeText={setTitle} />
 
@@ -355,7 +402,7 @@ function Stepper({ label, value, onChange, testID }: { label: string; value: num
 
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider, position: "relative", overflow: "hidden" },
   headerTitle: { fontFamily: fonts.family, fontSize: r.ms(18), fontWeight: "800", color: colors.onSurface },
   scroll: { padding: spacing.lg, gap: spacing.lg, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   label: { fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onSurfaceSecondary, marginLeft: spacing.xs, marginBottom: -spacing.sm },
@@ -364,6 +411,9 @@ const useStyles = makeStyles((colors, r) => ({
   photoWrap: { width: 96, height: 96, borderRadius: radius.lg, overflow: "hidden", position: "relative" },
   photo: { width: "100%", height: "100%" },
   removePhoto: { position: "absolute", top: 6, right: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.surfaceInverse, alignItems: "center", justifyContent: "center" },
+  videoBtn: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.brandTertiary, borderRadius: radius.lg, padding: spacing.lg, borderWidth: 1.5, borderColor: colors.brand, borderStyle: "dashed" },
+  videoTitle: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onBrandTertiary },
+  videoSub: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.onBrandTertiary },
   dropdown: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden", shadowColor: colors.shadow, shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 4 },
   suggestion: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
   suggestionText: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurface },

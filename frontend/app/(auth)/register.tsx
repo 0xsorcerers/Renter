@@ -11,6 +11,7 @@ import { Button, Field, IconButton } from "@/src/components/ui";
 import { Glass } from "@/src/components/glass";
 import { useToast } from "@/src/components/toast";
 import { RolePicker } from "@/src/components/role-picker";
+import { LineArt } from "@/src/components/line-art";
 import type { Role } from "@/src/api";
 
 export default function Register() {
@@ -42,6 +43,7 @@ export default function Register() {
   return (
     <View style={styles.root} testID="register-screen">
       <LinearGradient colors={[colors.accentLemon, colors.surface, colors.accentMint]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bg} />
+      <LineArt name="explore" opacity={0.3} fade={false} align="bottom" style={{ top: "60%" }} />
       <View style={[styles.blob, styles.blobA]} />
       <KeyboardAwareScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing.md, paddingBottom: insets.bottom + spacing.xl }]}
