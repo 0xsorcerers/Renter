@@ -1,0 +1,30 @@
+{
+  "summary": "Renter MVP end-to-end verified. Backend: 30/30 pytest cases passed on the public URL (auth register/login/me/401/409, currencies & photon places fallback, listing CRUD with soft-delete, currency auto NG->NGN/CN->CNY plus manual override, role-gated create/offer/review, offers inherit listing currency+period, threaded review replies visible in listing feed, /api/upload+/api/files serve a real PNG round-trip via Emergent Object Storage). Frontend (Expo web, 390x844): tenant login lands on Explore; period chips, list/map toggle, listing detail with 'PER YEAR' badge, mini-map placeholder, offers list, reviews, replies, WhatsApp/Call buttons all render; tenant Make offer + Post review + Reply all POST successfully and appear in-line; Activity tab shows 'My offers' with your-offer vs asking side by side; Profile shows bio/phone/whatsapp/email and Log out button. Owner login shows 'List a home' FAB; Create listing flow: address 'Lekki Lagos' returns 6 photon suggestions, tapping the first sets currency-hint to 'Auto-detected Nigerian Naira from Nigeria', override via change-currency-button -> currency-option-USD flips it to 'Currency set manually to US Dollar', period-option-week + $175 -> Publish lands on the detail screen with WEEKLY RENT · USD $175 PER WEEK. Register screen creates a new tenant and lands on Explore. No deprecated Expo packages (expo-av/barcode-scanner/background-fetch) detected. Google native map is expected to be a pin-list on web and this is what we see. All acceptance criteria in the review request are met.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_renter_api.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py is ~850 lines in a single file. It still fits comfortably, but if more resources are added, split into routers/ (auth, listings, offers, reviews, users, uploads).",
+    "Photon fallback occasionally returns entries without country_code, so places[*].currency can be null in the response; the frontend handles this gracefully but consumers should not assume currency is always present.",
+    "decorate_listing does N+1 queries (owner + counts + rating) per listing on GET /api/listings. Fine for demo (<200 listings) but should be batched once the catalog grows."
+  ],
+  "updated_files": [
+    "/app/backend/tests/conftest.py (created)",
+    "/app/backend/tests/test_renter_api.py (created)"
+  ],
+  "success_rate": {"backend": "100% (30/30)", "frontend": "100% of tested critical flows"},
+  "seed_data_creation": "Backend seed already produces owner@renter.app, tenant@renter.app, 5 seed listings, one offer, one review and one reply. All test-generated data (TEST_* users, TEST offers/reviews/replies, TEST Owner Playwright USD listing) were left in Mongo except the created listing which was soft-deleted at the end of the run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Public URL: https://direct-housing-2.preview.emergentagent.com. Frontend env uses EXPO_PUBLIC_BACKEND_URL. Emergent Google login (POST /api/auth/session) cannot be exercised without an Emergent session_id and was intentionally skipped. Google Places has no billing so /api/places/search silently falls back to photon.komoot.io; country_code is not guaranteed. Native map is a pin-list on web (expected). Currency override in the Create Listing sheet requires scroll_into_view_if_needed on the target currency option because the sheet is scrollable and 'USD' is far down the list."
+}

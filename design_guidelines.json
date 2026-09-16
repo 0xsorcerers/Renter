@@ -1,0 +1,169 @@
+{
+  "app_name": "Renter",
+  "personality": "4 Tactile / Playful LIGHT",
+  "personality_one_liner": "A vibrant, touchable, and transparent marketplace where Gen Z can find housing through playful discovery and community-driven negotiations.",
+  "color": {
+    "surface": "#FCFCF9",
+    "onSurface": "#1A1C19",
+    "surfaceSecondary": "#F2F3EC",
+    "onSurfaceSecondary": "#1A1C19",
+    "surfaceTertiary": "#E5E7E0",
+    "onSurfaceTertiary": "#1A1C19",
+    "surfaceInverse": "#1A1C19",
+    "onSurfaceInverse": "#FCFCF9",
+    "brand": "#00C896",
+    "brandPrimary": "#00A87D",
+    "onBrandPrimary": "#FCFCF9",
+    "brandSecondary": "#F4D03F",
+    "onBrandSecondary": "#1A1C19",
+    "brandTertiary": "#E0F7F1",
+    "onBrandTertiary": "#005C45",
+    "success": "#27AE60",
+    "onSuccess": "#FFFFFF",
+    "warning": "#F1C40F",
+    "onWarning": "#1A1C19",
+    "error": "#E74C3C",
+    "onError": "#FFFFFF",
+    "info": "#2C3E50",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7E0",
+    "borderStrong": "#C2C6BC",
+    "divider": "#E5E7E0",
+    "muted": "#70736B",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous spacing. Use large tap targets. Avoid dense grid groupings. Let the screen breathe.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "2",
+  "navigation": "bottom_tabs",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Apply frosted glass to the bottom tab bar.",
+      "Apply glass to sticky action buttons, map floating filters, and bottom-sheet headers.",
+      "Apply glass to hero property cards over map."
+    ],
+    "dont's": [
+      "Do not apply glass to body text containers or standard list rows.",
+      "Do not blur entire background."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Explore",
+      "purpose": "A map-first discovery feed where users browse available properties via floating glass cards.",
+      "states": {
+        "loading": "Centered pulse spinner.",
+        "empty": "Playful illustration of an empty neighborhood + 'No homes found in this area' + 'Zoom out' CTA.",
+        "error": "Readable text + 'Retry Map' button."
+      },
+      "layout": "Map view fills the background (react-native-maps). Glassmorphic floating search/filter pill at the top safe area. A bottom sheet or horizontal carousel of floating glass cards at the bottom. Tapping a card brings it to focus on the map. Toggle between map and list view via a floating action button."
+    },
+    {
+      "name": "ListingDetail",
+      "purpose": "Showcase a property with immersive photos, dynamic pricing (Weeks/Months/Years), tenant offers, and contact options.",
+      "states": {
+        "loading": "Skeleton image and text rows.",
+        "empty": "Not applicable (detail screen).",
+        "error": "Error loading property + 'Go Back' CTA."
+      },
+      "layout": "Full-bleed photo carousel at the top with a top-to-bottom gradient scrim (Layer 1) and back/heart icons. Details section below with large, emphasized Pricing + Period Badge. Includes a mini-map for location. Tenant offers stacked in soft playful cards below the description. A sticky, glassmorphic bottom bar for 'Make an Offer' / 'Contact via WhatsApp/Phone'."
+    },
+    {
+      "name": "Profile",
+      "purpose": "Display user bios, contact info, and reviews in a tactile, Gen Z-friendly manner.",
+      "states": {
+        "loading": "Spinner.",
+        "empty": "Illustration for 'No reviews yet'.",
+        "error": "Readable text + 'Reload' button."
+      },
+      "layout": "Avatar (cool GenZ portrait) centered over a subtle tinted gradient or pattern background. Bio text, Phone, and WhatsApp pill buttons. Threaded reviews displayed in nested rounded bubbles."
+    },
+    {
+      "name": "CreateListing",
+      "purpose": "Allow homeowners to easily upload photos, auto-detect currency, set price periods, and post listings.",
+      "states": {
+        "loading": "Spinner during upload.",
+        "empty": "Initial blank state for forms.",
+        "error": "Validation error text below inputs."
+      },
+      "layout": "Step-by-step or single-column form with large, touchable inputs. Address autocomplete field. Segmented control for Rent Period (Week/Month/Year). Auto-detected local currency display with an override option. Sticky submit button in KeyboardAvoidingView."
+    }
+  ],
+  "images": {
+    "explore_map_fallback": {
+      "url": "https://images.unsplash.com/photo-1788321246607-651659df8248?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1ODB8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGJhY2tncm91bmQlMjBncmVlbiUyMHllbGxvdyUyMHBpbmslMjBzb2Z0fGVufDB8fHx8MTc4OTU2ODMyN3ww&ixlib=rb-4.1.0&q=85",
+      "alt": "Soft colorful background pattern"
+    },
+    "property_sample_1": {
+      "url": "https://images.pexels.com/photos/7546648/pexels-photo-7546648.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Modern colorful stylish apartment living room"
+    },
+    "property_sample_2": {
+      "url": "https://images.pexels.com/photos/7147370/pexels-photo-7147370.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "alt": "Interior of modern living room with purple and green accents"
+    },
+    "profile_avatar_1": {
+      "url": "https://images.unsplash.com/photo-1740252117027-4275d3f84385?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1NzZ8MHwxfHNlYXJjaHwxfHxwbGF5ZnVsJTIwY29vbCUyMHRyZW5keSUyMHRlZW4lMjBhdmF0YXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODk1NjgzMTJ8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Playful trendy teen avatar"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the Tactile/Playful (Personality 4) guidelines. The app should feel touchable with large tap targets, pill controls, and subtle overshoot springs.",
+    "Implement glassmorphism heavily on sticky/floating elements: use expo-glass-effect (iOS) or expo-blur (Android) for the bottom tab bar, map filter pills, and bottom action bars.",
+    "Ensure the Rent Period (Week/Month/Year) is visually emphasized next to the listing price, using the brandPrimary color or a prominent badge.",
+    "Map View is the primary discovery interface. Listings on the map should use React Native Maps. Overlay floating glass property cards that update as the map pans.",
+    "Tenant Offers and Reviews must feature nested replies. Use rounded bubbles and clear visual hierarchy to separate comments from threaded replies.",
+    "Do NOT use any shades of Blue, Purple, Indigo, Violet, Orange, or Terracotta. We are using a vibrant Emerald and Sunny Yellow Gen-Z palette.",
+    "Include a Gradient Scrim (transparent to surfaceInverse) on any full-bleed image (e.g. Listing detail hero) before overlaying text.",
+    "Provide WhatsApp and Phone deep-linking buttons on user profiles and listing pages.",
+    "Ensure forms (Create Listing) have sticky CTAs at the bottom inside KeyboardAvoidingView, avoiding float labels."
+  ],
+  "haptics": {
+    "events": {
+      "button_press": "impactLight",
+      "tab_change": "selection",
+      "filter_toggle": "impactMedium",
+      "offer_submit": "notificationSuccess",
+      "map_pin_select": "selection"
+    }
+  }
+}
