@@ -6,7 +6,7 @@ import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, type Conversation, type Listing, type Offer } from "@/src/api";
+import { api, type Agreement, type Conversation, type Listing, type Offer } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { useTabBottomChrome } from "@/src/use-tab-bottom";
 import { ListingCard } from "@/src/components/listing-card";
@@ -39,6 +39,7 @@ export default function Activity() {
   });
 
   const unread = useQuery({ queryKey: ["unread"], queryFn: () => api<{ unread: number }>("/conversations/unread"), refetchInterval: 15000 });
+  const agreements = useQuery({ queryKey: ["agreements", "mine"], queryFn: () => api<Agreement[]>("/agreements/mine"), refetchInterval: 15000 });
 
   const openChat = useMutation({
     mutationFn: (listingId: string) => api<Conversation>("/conversations", { method: "POST", body: { listing_id: listingId } }),
@@ -75,6 +76,29 @@ export default function Activity() {
         <LineArt name="activity" opacity={0.2} fade={false} align="center" style={{ left: "45%" }} />
         {Header}
       </View>
+      {(agreements.data ?? []).length > 0 && (
+        <View style={styles.agreementsWrap} testID="activity-agreements">
+          <Text style={styles.agreementsTitle}>License agreements</Text>
+          {(agreements.data ?? []).map((a) => (
+            <Pressable key={a.agreement_id} testID={`agreement-row-${a.agreement_id}`} onPress={() => router.push({ pathname: "/agreement/[id]", params: { id: a.agreement_id } })} style={[styles.agreementCard, a.status === "active" && styles.agreementActive]}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.agreementName} numberOfLines={1}>
+                  {a.listing?.title ?? "Residence"} · {a.residence_label}
+                </Text>
+                <Text style={styles.agreementMeta} numberOfLines={1}>
+                  {a.my_role === "owner" ? `Tenant: ${a.tenant?.name ?? "—"}` : `Homeowner: ${a.owner?.name ?? "—"}`}
+                  {a.status === "active" && a.ends_at ? ` · until ${new Date(a.ends_at).toLocaleDateString()}` : ""}
+                </Text>
+              </View>
+              <View style={[styles.agreementBadge, a.status === "active" && { backgroundColor: colors.brandPrimary }]}>
+                <Text style={[styles.agreementBadgeText, a.status === "active" && { color: colors.onBrandPrimary }]}>
+                  {a.status === "active" ? "ACTIVE" : a.status === "ended" ? "ENDED" : "PENDING"}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+      )}
       {isOwner ? (
         <FlatList
           data={myListings.data ?? []}
@@ -183,6 +207,14 @@ const useStyles = makeStyles((colors, r) => ({
     height: 40,
   },
   offersLinkText: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(13), fontWeight: "700", color: colors.onBrandTertiary },
+  agreementsWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
+  agreementsTitle: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "800", color: colors.muted, textTransform: "uppercase", letterSpacing: 1 },
+  agreementCard: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  agreementActive: { backgroundColor: colors.brandTertiary, borderColor: colors.brand },
+  agreementName: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
+  agreementMeta: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted },
+  agreementBadge: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  agreementBadgeText: { fontFamily: fonts.family, fontSize: r.ms(10), fontWeight: "800", color: colors.onSurfaceSecondary, letterSpacing: 0.5 },
   offerCard: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: 6, borderWidth: 1, borderColor: colors.border },
   offerAccepted: { backgroundColor: colors.brandTertiary, borderColor: colors.brand },
   offerTitleRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },

@@ -113,6 +113,41 @@ export interface Currency {
   name: string;
 }
 
+export type FeeKey = "app_fee" | "legal_fee" | "caution" | "service_charge" | "custom";
+export type FeeAmountType = "flat" | "percent_annual" | "percent_period";
+export type ResidenceStatus = "available" | "rented" | "active";
+export type AgreementStatus = "pending" | "active" | "ended";
+
+export interface FeeCharge {
+  fee_id: string;
+  key: FeeKey | string;
+  label: string;
+  amount_type: FeeAmountType;
+  value: number;
+  negotiable: boolean;
+  amenities: string[];
+  note: string;
+  amount?: number;
+}
+
+export interface Residence {
+  residence_id: string;
+  label: string;
+  unit_type: string;
+  bedrooms: number;
+  bathrooms: number;
+  price: number;
+  period: Period;
+  tenure_months: number;
+  status: ResidenceStatus;
+  agreement_id: string | null;
+  tenant_id: string | null;
+  photos: string[];
+  fees: FeeCharge[];
+  fees_total?: number;
+  move_in_total?: number;
+}
+
 export interface Listing {
   listing_id: string;
   owner_id: string;
@@ -142,6 +177,50 @@ export interface Listing {
   distance_km: number | null;
   status: "available" | "rented";
   video: string | null;
+  residences?: Residence[];
+  unit_count?: number;
+  available_count?: number;
+}
+
+export interface Agreement {
+  agreement_id: string;
+  listing_id: string;
+  residence_id: string;
+  residence_label: string;
+  offer_id: string;
+  owner_id: string;
+  tenant_id: string;
+  rent_amount: number;
+  currency: string;
+  currency_symbol: string;
+  period: Period;
+  tenure_months: number;
+  fees: FeeCharge[];
+  fees_total?: number;
+  status: AgreementStatus;
+  owner_signed: boolean;
+  tenant_signed: boolean;
+  owner_confirmed_payment: boolean;
+  tenant_confirmed_payment: boolean;
+  activated_at: string | null;
+  ends_at: string | null;
+  created_at: string;
+  listing?: {
+    listing_id: string;
+    title: string;
+    address: string;
+    city: string;
+    country: string;
+    photos: string[];
+    currency: string;
+    currency_symbol: string;
+  } | null;
+  residence?: Residence | null;
+  owner?: UserSummary | null;
+  tenant?: UserSummary | null;
+  contract_text?: string;
+  is_mine?: boolean;
+  my_role?: "owner" | "tenant" | null;
 }
 
 export type OfferStatus = "pending" | "accepted" | "declined" | "closed";
@@ -197,6 +276,8 @@ export function buildListingQuery(f: ListingFilters) {
 export interface Offer {
   offer_id: string;
   listing_id: string;
+  residence_id?: string;
+  residence_label?: string;
   tenant_id: string;
   amount: number;
   currency: string;

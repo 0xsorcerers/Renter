@@ -14,6 +14,8 @@ export function formatPrice(amount: number, symbol: string, currency?: string) {
   return `${symbol}${formatAmount(amount, currency)}`;
 }
 
+export const PERIODS_PER_YEAR: Record<Period, number> = { week: 52, month: 12, year: 1 };
+
 export const PERIOD_LABEL: Record<Period, string> = {
   week: "per week",
   month: "per month",

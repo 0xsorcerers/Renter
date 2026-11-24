@@ -10,7 +10,7 @@ import * as Haptics from "expo-haptics";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, fileUrl, type Conversation, type Listing, type Offer, type OfferStatus, type Review } from "@/src/api";
+import { api, fileUrl, type Agreement, type Conversation, type FeeCharge, type Listing, type Offer, type OfferStatus, type Residence, type Review } from "@/src/api";
 import { useAuth } from "@/src/auth-context";
 import { useFavorite } from "@/src/use-favorite";
 import { OfferStatusBadge } from "@/src/components/offer-status";
@@ -37,6 +37,7 @@ export default function ListingDetail() {
   const { user } = useAuth();
   const { width } = useWindowDimensions();
   const [photoIdx, setPhotoIdx] = useState(0);
+  const [selResId, setSelResId] = useState<string | null>(null);
   const [offerAmount, setOfferAmount] = useState("");
   const [offerMsg, setOfferMsg] = useState("");
   const [showOffer, setShowOffer] = useState(false);
@@ -47,6 +48,11 @@ export default function ListingDetail() {
   const listing = useQuery({ queryKey: ["listing", id], queryFn: () => api<Listing>(`/listings/${id}`) });
   const offers = useQuery({ queryKey: ["offers", id], queryFn: () => api<Offer[]>(`/listings/${id}/offers`), refetchInterval: 15000 });
   const reviews = useQuery({ queryKey: ["reviews", "listing", id], queryFn: () => api<Review[]>(`/reviews?listing_id=${id}`) });
+  const agreements = useQuery({
+    queryKey: ["agreements", "listing", id],
+    queryFn: () => api<Agreement[]>(`/listings/${id}/agreements`),
+    enabled: !!user,
+  });
   const favorite = useFavorite();
 
   const respond = useMutation({
@@ -60,7 +66,8 @@ export default function ListingDetail() {
   });
 
   const makeOffer = useMutation({
-    mutationFn: () => api(`/listings/${id}/offers`, { method: "POST", body: { amount: Number(offerAmount.replace(/[^\d.]/g, "")), message: offerMsg } }),
+    mutationFn: (residenceId: string) =>
+      api(`/listings/${id}/offers`, { method: "POST", body: { amount: Number(offerAmount.replace(/[^\d.]/g, "")), message: offerMsg, residence_id: residenceId } }),
     onSuccess: () => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setOfferAmount("");
@@ -87,13 +94,14 @@ export default function ListingDetail() {
   });
 
   const setStatus = useMutation({
-    mutationFn: (status: "rented" | "available") => api<Listing>(`/listings/${id}`, { method: "PATCH", body: { status } }),
-    onSuccess: (_d, status) => {
+    mutationFn: (vars: { residenceId: string; status: "rented" | "available" }) =>
+      api<Listing>(`/listings/${id}/residences/${vars.residenceId}/status`, { method: "POST", body: { status: vars.status } }),
+    onSuccess: (_d, vars) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       qc.invalidateQueries({ queryKey: ["listing", id] });
       qc.invalidateQueries({ queryKey: ["listings"] });
       qc.invalidateQueries({ queryKey: ["offers"] });
-      toast.show(status === "rented" ? "Marked as rented — it's off Explore and pending offers are closed" : "Listing is available again", "success");
+      toast.show(vars.status === "rented" ? "Marked as rented" : "Residence is available again", "success");
     },
     onError: (e: any) => toast.show(e.message, "error"),
   });
@@ -141,10 +149,25 @@ export default function ListingDetail() {
   const isTenant = user?.role === "tenant";
   const isOwner = l.is_mine;
   const photos = l.photos?.length ? l.photos : [];
-  const isRented = l.status === "rented";
-  const myAccepted = (offers.data ?? []).find((o) => o.tenant_id === user?.user_id && o.status === "accepted");
+  const residences = l.residences ?? [];
+  const res: Residence | null = residences.find((r) => r.residence_id === selResId) ?? residences[0] ?? null;
+  const resStatus = res?.status ?? "available";
+  const isRented = resStatus === "rented" || l.status === "rented";
+  const isActive = resStatus === "active";
+  const resOffers = (offers.data ?? []).filter((o) => !o.residence_id || !res || o.residence_id === res.residence_id);
+  const resAgreement = (agreements.data ?? []).find((a) => a.residence_id === res?.residence_id) ?? null;
+  const myAccepted = resOffers.find((o) => o.tenant_id === user?.user_id && o.status === "accepted");
   const heroH = Math.min(width * 0.85, 420);
   const barHeight = 84 + insets.bottom;
+
+  if (!res) {
+    return (
+      <View style={[styles.root, styles.center, { padding: spacing.xl, gap: spacing.lg }]} testID="listing-no-units">
+        <EmptyState icon="business-outline" title="No residences available" subtitle="Every unit in this structure is currently occupied. Check back later." />
+        <Button title="Go back" variant="ghost" onPress={() => router.back()} testID="listing-no-units-back" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root} testID="listing-detail-screen">
@@ -210,31 +233,119 @@ export default function ListingDetail() {
         </View>
 
         <View style={styles.body}>
-          {isRented && (
-            <View style={styles.rentedCard} testID="listing-rented-banner">
-              <LineArt name="rented" opacity={0.5} fade={false} align="center" style={{ left: "55%" }} />
-              <View style={{ gap: 4, maxWidth: "60%" }}>
-                <Text style={styles.rentedTitle}>This home has been rented</Text>
-                <Text style={styles.rentedSub}>{isOwner ? "It's hidden from Explore and pending offers were closed." : "Keep exploring — new homes are posted every day."}</Text>
-                {isOwner && <Button testID="listing-relist-button" title="Make available again" small variant="ghost" loading={setStatus.isPending} onPress={() => setStatus.mutate("available")} style={{ alignSelf: "flex-start", marginTop: spacing.sm }} />}
+          {residences.length > 1 && (
+            <View style={{ gap: spacing.sm }} testID="residence-selector">
+              <SectionTitle title={`Residences (${residences.length})`} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
+                {residences.map((r) => {
+                  const selected = r.residence_id === res.residence_id;
+                  const statusColor = r.status === "available" ? colors.success : r.status === "active" ? colors.brandPrimary : colors.muted;
+                  return (
+                    <Pressable
+                      key={r.residence_id}
+                      testID={`residence-chip-${r.residence_id}`}
+                      onPress={() => {
+                        setSelResId(r.residence_id);
+                        setShowOffer(false);
+                        Haptics.selectionAsync().catch(() => {});
+                      }}
+                      style={[styles.resChip, selected && styles.resChipActive]}
+                    >
+                      <Text style={[styles.resChipLabel, selected && styles.resChipLabelActive]} numberOfLines={1}>
+                        {r.label}
+                      </Text>
+                      <Text style={[styles.resChipMeta, selected && { color: colors.onBrandPrimary }]} numberOfLines={1}>
+                        {r.bedrooms}bd · {r.bathrooms}ba · {formatPrice(r.price, l.currency_symbol, l.currency)} {PERIOD_LABEL[r.period]}
+                      </Text>
+                      <View style={[styles.resStatusDot, { backgroundColor: statusColor }]} />
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {isActive && (
+            <View style={styles.activeCard} testID="listing-active-banner">
+              <Ionicons name="key" size={22} color={colors.onBrandPrimary} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.activeTitle}>Active tenancy</Text>
+                <Text style={styles.activeSub}>
+                  {resAgreement?.ends_at ? `Occupied until ${new Date(resAgreement.ends_at).toLocaleDateString()}. ` : ""}
+                  This residence is under a signed license agreement and is hidden from other tenants.
+                </Text>
+                {resAgreement && (
+                  <Button testID="listing-view-agreement-button" title="View agreement" icon="document-text" small variant="secondary" onPress={() => router.push({ pathname: "/agreement/[id]", params: { id: resAgreement.agreement_id } })} style={{ alignSelf: "flex-start", marginTop: spacing.xs }} />
+                )}
               </View>
             </View>
           )}
-          {isOwner && !isRented && (
-            <Button testID="listing-mark-rented-button" title="Mark as rented" icon="checkmark-done" variant="dark" loading={setStatus.isPending} onPress={() => setStatus.mutate("rented")} />
+
+          {isRented && !isActive && (
+            <View style={styles.rentedCard} testID="listing-rented-banner">
+              <LineArt name="rented" opacity={0.5} fade={false} align="center" style={{ left: "55%" }} />
+              <View style={{ gap: 4, maxWidth: "60%" }}>
+                <Text style={styles.rentedTitle}>This residence has been rented</Text>
+                <Text style={styles.rentedSub}>{isOwner ? "It's hidden from Explore and pending offers were closed." : "Keep exploring — new homes are posted every day."}</Text>
+                {isOwner && (
+                  <Button testID="listing-relist-button" title="Make available again" small variant="ghost" loading={setStatus.isPending} onPress={() => setStatus.mutate({ residenceId: res.residence_id, status: "available" })} style={{ alignSelf: "flex-start", marginTop: spacing.sm }} />
+                )}
+              </View>
+            </View>
+          )}
+          {isOwner && !isRented && resStatus === "available" && (
+            <Button testID="listing-mark-rented-button" title={`Mark "${res.label}" as rented`} icon="checkmark-done" variant="dark" loading={setStatus.isPending} onPress={() => setStatus.mutate({ residenceId: res.residence_id, status: "rented" })} />
           )}
           <View style={styles.priceCard} testID="listing-price-card">
-            <Text style={styles.priceLabel}>{PERIOD_TITLE[l.period]} rent · {l.currency}</Text>
-            <PriceTag amount={l.price} symbol={l.currency_symbol} currency={l.currency} period={l.period} size="lg" testID="listing-price" />
+            <Text style={styles.priceLabel}>
+              {PERIOD_TITLE[res.period]} rent{residences.length > 1 ? ` · ${res.label}` : ""} · {l.currency}
+            </Text>
+            <PriceTag amount={res.price} symbol={l.currency_symbol} currency={l.currency} period={res.period} size="lg" testID="listing-price" />
             <Text style={styles.priceHint}>
-              All offers on this home are {PERIOD_LABEL[l.period]} in {l.currency}.
+              All offers on this residence are {PERIOD_LABEL[res.period]} in {l.currency} · {res.tenure_months}-month tenure.
             </Text>
           </View>
 
+          {/* Fees & charges */}
+          {(res.fees ?? []).length > 0 && (
+            <View style={{ gap: spacing.sm }} testID="listing-fees-section">
+              <SectionTitle title="Fees & charges" />
+              <View style={styles.feeList}>
+                {res.fees.map((f: FeeCharge) => (
+                  <View key={f.fee_id} style={styles.feeRow} testID={`fee-row-${f.fee_id}`}>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                        <Text style={styles.feeName}>{f.label}</Text>
+                        {f.key === "app_fee" ? (
+                          <View style={styles.feeTag}><Text style={styles.feeTagText}>Required</Text></View>
+                        ) : f.negotiable ? (
+                          <View style={[styles.feeTag, styles.feeTagNeg]}><Text style={[styles.feeTagText, { color: colors.brandPrimary }]}>Negotiable</Text></View>
+                        ) : null}
+                      </View>
+                      {f.amenities?.length > 0 && <Text style={styles.feeAmenity}>Covers: {f.amenities.join(", ")}</Text>}
+                      {f.note ? <Text style={styles.feeNote}>{f.note}</Text> : null}
+                    </View>
+                    <Text style={styles.feeAmount}>{formatPrice(f.amount ?? 0, l.currency_symbol, l.currency)}</Text>
+                  </View>
+                ))}
+                <View style={[styles.feeRow, { borderBottomWidth: 0 }]}>
+                  <Text style={styles.feeTotalLabel}>Total fees (move-in)</Text>
+                  <Text style={styles.feeTotalAmount} testID="fees-total">
+                    {formatPrice(res.fees_total ?? 0, l.currency_symbol, l.currency)}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.feeHint}>
+                Fees marked <Text style={{ fontWeight: "800" }}>Negotiable</Text> can be appealed — message the homeowner to ask for removal or a lower amount. The App Fee is compulsory.
+              </Text>
+            </View>
+          )}
+
           <View style={styles.facts}>
-            <Fact icon="bed-outline" label={`${l.bedrooms} bed`} />
-            <Fact icon="water-outline" label={`${l.bathrooms} bath`} />
-            <Fact icon="chatbubbles-outline" label={`${l.offers_count} offers`} />
+            <Fact icon="bed-outline" label={`${res.bedrooms} bed`} />
+            <Fact icon="water-outline" label={`${res.bathrooms} bath`} />
+            <Fact icon="chatbubbles-outline" label={`${resOffers.length} offers`} />
+            <Fact icon="time-outline" label={`${res.tenure_months} mo tenure`} />
             {l.rating != null && <Fact icon="star" label={`${l.rating} (${l.reviews_count})`} />}
           </View>
 
@@ -288,19 +399,51 @@ export default function ListingDetail() {
             </Pressable>
           )}
 
+          {/* Agreement status */}
+          {resAgreement && (
+            <View style={[styles.offerBubble, resAgreement.status === "active" ? styles.offerAccepted : {}]} testID="agreement-card">
+              <View style={styles.offerHeadRow}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm, flex: 1 }}>
+                  <Ionicons name="document-text" size={18} color={colors.brandPrimary} />
+                  <Text style={styles.offerName}>License agreement{residences.length > 1 ? ` · ${resAgreement.residence_label}` : ""}</Text>
+                </View>
+                <OfferStatusBadge
+                  status={resAgreement.status === "active" ? "accepted" : resAgreement.status === "ended" ? "closed" : "pending"}
+                  testID="agreement-status-badge"
+                />
+              </View>
+              <Text style={styles.offerMsg}>
+                {resAgreement.status === "pending"
+                  ? "Both parties must sign and confirm payment before the tenancy activates."
+                  : resAgreement.status === "active"
+                    ? `Active until ${resAgreement.ends_at ? new Date(resAgreement.ends_at).toLocaleDateString() : "tenure end"}.`
+                    : "This agreement has ended."}
+              </Text>
+              <AgreementChecklist ag={resAgreement} />
+              <Button
+                testID="agreement-open-button"
+                title={resAgreement.status === "pending" ? "Review & sign agreement" : "View agreement"}
+                icon="document-text-outline"
+                small
+                variant={resAgreement.status === "pending" ? "primary" : "secondary"}
+                onPress={() => router.push({ pathname: "/agreement/[id]", params: { id: resAgreement.agreement_id } })}
+              />
+            </View>
+          )}
+
           <View>
             <SectionTitle
-              title={`Tenant offers (${offers.data?.length ?? 0})`}
+              title={`Tenant offers (${resOffers.length})`}
               right={
-                isTenant && !isRented ? (
+                isTenant && !isRented && !isActive ? (
                   <Button testID="open-offer-form-button" title={showOffer ? "Close" : "Make offer"} small variant="secondary" onPress={() => setShowOffer((s) => !s)} />
                 ) : undefined
               }
             />
-            {showOffer && isTenant && !isRented && (
+            {showOffer && isTenant && !isRented && !isActive && res && (
               <View style={styles.formCard} testID="offer-form">
                 <Text style={styles.formHint}>
-                  Your offer is {PERIOD_LABEL[l.period]} in {l.currency} — same terms as the listing.
+                  Your offer is {PERIOD_LABEL[res.period]} in {l.currency} for “{res.label}”{residences.length > 1 ? ` — same terms as this residence` : " — same terms as the listing"}.
                 </Text>
                 <View style={styles.amountRow}>
                   <Text style={styles.amountSymbol}>{l.currency_symbol}</Text>
@@ -326,14 +469,14 @@ export default function ListingDetail() {
                   style={styles.msgInput}
                   multiline
                 />
-                <Button testID="offer-submit-button" title="Post offer" loading={makeOffer.isPending} disabled={!offerAmount} onPress={() => makeOffer.mutate()} />
+                <Button testID="offer-submit-button" title="Post offer" loading={makeOffer.isPending} disabled={!offerAmount} onPress={() => res && makeOffer.mutate(res.residence_id)} />
               </View>
             )}
             <View style={{ gap: spacing.sm }}>
-              {(offers.data ?? []).length === 0 && !showOffer && (
+              {resOffers.length === 0 && !showOffer && (
                 <Text style={styles.emptyLine}>No offers yet{isTenant ? " — be the first." : "."}</Text>
               )}
-              {(offers.data ?? []).map((o) => (
+              {resOffers.map((o) => (
                 <View key={o.offer_id} style={[styles.offerBubble, o.status === "accepted" && styles.offerAccepted, o.status === "declined" && styles.offerDeclined]} testID={`offer-${o.offer_id}`}>
                   <View style={styles.offerHeadRow}>
                     <Pressable onPress={() => o.tenant && router.push(`/user/${o.tenant.user_id}`)} style={styles.offerHead}>
@@ -343,6 +486,7 @@ export default function ListingDetail() {
                     <OfferStatusBadge status={o.status} testID={`offer-status-${o.offer_id}`} />
                   </View>
                   <PriceTag amount={o.amount} symbol={o.currency_symbol} currency={o.currency} period={o.period} size="sm" />
+                  {o.residence_label && residences.length > 1 && <Text style={styles.offerMsg}>Unit: {o.residence_label}</Text>}
                   {o.message ? <Text style={styles.offerMsg}>{o.message}</Text> : null}
                   {isOwner && o.status === "pending" && (
                     <View style={{ flexDirection: "row", gap: spacing.sm }}>
@@ -423,12 +567,12 @@ export default function ListingDetail() {
         <Glass strong style={styles.sticky} testID="listing-sticky-bar">
           <View style={[styles.stickyInner, { paddingBottom: insets.bottom + spacing.sm }]}>
             <View style={{ flex: 1 }}>
-              <PriceTag amount={l.price} symbol={l.currency_symbol} currency={l.currency} period={l.period} size="sm" />
+              <PriceTag amount={res.price} symbol={l.currency_symbol} currency={l.currency} period={res.period} size="sm" />
             </View>
             {isOwner ? (
               <Button testID="listing-owner-inbox-button" title="Inbox" icon="chatbubbles" small variant="secondary" onPress={() => router.push("/chat")} />
-            ) : isRented ? (
-              <Button title="Rented" small variant="ghost" disabled />
+            ) : isRented || isActive ? (
+              <Button title="Occupied" small variant="ghost" disabled />
             ) : myAccepted ? (
               <View style={{ flex: 1.4, flexDirection: "row", gap: spacing.sm }}>
                 <Button testID="sticky-chat-button" title="Chat" icon="chatbubble-ellipses" small style={{ flex: 1 }} loading={openChat.isPending} onPress={() => openChat.mutate(undefined)} />
@@ -440,6 +584,30 @@ export default function ListingDetail() {
           </View>
         </Glass>
       </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function AgreementChecklist({ ag }: { ag: Agreement }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const steps: { label: string; done: boolean; mine: boolean }[] = [
+    { label: "Homeowner signed", done: !!ag.owner_signed, mine: ag.my_role === "owner" },
+    { label: "Tenant signed", done: !!ag.tenant_signed, mine: ag.my_role === "tenant" },
+    { label: "Homeowner confirmed payment", done: !!ag.owner_confirmed_payment, mine: ag.my_role === "owner" },
+    { label: "Tenant confirmed payment", done: !!ag.tenant_confirmed_payment, mine: ag.my_role === "tenant" },
+  ];
+  return (
+    <View style={{ gap: 4, marginVertical: spacing.xs }} testID="agreement-checklist">
+      {steps.map((s) => (
+        <View key={s.label} style={styles.checkRow}>
+          <Ionicons name={s.done ? "checkmark-circle" : "ellipse-outline"} size={16} color={s.done ? colors.success : colors.muted} />
+          <Text style={[styles.checkText, s.mine && !s.done && { color: colors.brandPrimary, fontWeight: "800" }]}>
+            {s.label}
+            {s.mine && !s.done ? " — your turn" : ""}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }
@@ -506,6 +674,29 @@ const useStyles = makeStyles((colors, r) => ({
   offerHead: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   offerName: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
   offerMsg: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary, lineHeight: r.ms(20) },
+  resChip: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: 2, minWidth: 150, position: "relative" },
+  resChipActive: { backgroundColor: colors.surfaceInverse, borderColor: colors.surfaceInverse },
+  resChipLabel: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface, maxWidth: 160 },
+  resChipLabelActive: { color: colors.onSurfaceInverse },
+  resChipMeta: { fontFamily: fonts.family, fontSize: r.ms(11), color: colors.muted, fontWeight: "600" },
+  resStatusDot: { position: "absolute", top: spacing.sm, right: spacing.sm, width: 8, height: 8, borderRadius: 4 },
+  activeCard: { flexDirection: "row", gap: spacing.md, backgroundColor: colors.brandPrimary, borderRadius: radius.lg, padding: spacing.lg, alignItems: "flex-start" },
+  activeTitle: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "800", color: colors.onBrandPrimary },
+  activeSub: { fontFamily: fonts.family, fontSize: r.ms(13), color: colors.onBrandPrimary, lineHeight: r.ms(18) },
+  feeList: { backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  feeRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md, padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  feeName: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "700", color: colors.onSurface },
+  feeTag: { backgroundColor: colors.surface, borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 2 },
+  feeTagNeg: { backgroundColor: colors.brandTertiary },
+  feeTagText: { fontFamily: fonts.family, fontSize: r.ms(10), fontWeight: "800", color: colors.onSurfaceSecondary, textTransform: "uppercase", letterSpacing: 0.4 },
+  feeAmenity: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.brandPrimary, fontWeight: "600", marginTop: 2 },
+  feeNote: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, marginTop: 2 },
+  feeAmount: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
+  feeTotalLabel: { fontFamily: fonts.family, fontSize: r.ms(14), fontWeight: "800", color: colors.onSurface },
+  feeTotalAmount: { fontFamily: fonts.family, fontSize: r.ms(15), fontWeight: "800", color: colors.brandPrimary },
+  feeHint: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, lineHeight: r.ms(17) },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  checkText: { fontFamily: fonts.family, fontSize: r.ms(12), fontWeight: "600", color: colors.onSurfaceSecondary },
   stickyWrap: { position: "absolute", left: 0, right: 0, bottom: 0 },
   sticky: { borderTopLeftRadius: radius.lg + 4, borderTopRightRadius: radius.lg + 4, borderBottomWidth: 0 },
   stickyInner: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingHorizontal: spacing.lg, paddingTop: spacing.md },

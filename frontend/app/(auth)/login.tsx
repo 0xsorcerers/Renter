@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { Image } from "expo-image";
@@ -41,10 +40,9 @@ export default function Login() {
 
   return (
     <View style={styles.root} testID="login-screen">
-      <LinearGradient colors={[colors.accentMint, colors.surface, colors.accentLemon]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.bg} />
+      <Image source={require("../../assets/images/housebkg.jpg")} style={styles.bg} contentFit="cover" testID="login-bg-image" />
+      <View style={styles.bgOverlay} pointerEvents="none" />
       <LineArt name="welcome" opacity={0.35} fade={false} align="bottom" fit="contain" style={{ top: "58%" }} />
-      <View style={[styles.blob, styles.blobA]} />
-      <View style={[styles.blob, styles.blobB]} />
       <KeyboardAwareScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: insets.top + spacing["3xl"], paddingBottom: insets.bottom + spacing.xl }]}
         bottomOffset={24}
@@ -109,15 +107,13 @@ export default function Login() {
 
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
-  bg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  blob: { position: "absolute", width: 260, height: 260, borderRadius: 130, opacity: 0.55 },
-  blobA: { backgroundColor: colors.accentPink, top: -80, right: -70 },
-  blobB: { backgroundColor: colors.brand, bottom: 40, left: -120 },
+  bg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: "100%", height: "100%" },
+  bgOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(10, 14, 26, 0.45)" },
   scroll: { paddingHorizontal: spacing.xl, gap: spacing.xl, width: "100%", maxWidth: r.contentMaxWidth, alignSelf: "center" },
   brandRow: { alignItems: "flex-start", gap: spacing.sm },
   logo: { width: 84, height: 84, borderRadius: 24, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.glassBorder },
-  brand: { fontFamily: fonts.family, fontSize: r.ms(40), fontWeight: "800", color: colors.onSurface, letterSpacing: -1 },
-  tagline: { fontFamily: fonts.family, fontSize: r.ms(16), color: colors.onSurfaceSecondary, fontWeight: "600" },
+  brand: { fontFamily: fonts.family, fontSize: r.ms(40), fontWeight: "800", color: colors.onSurfaceInverse, letterSpacing: -1 },
+  tagline: { fontFamily: fonts.family, fontSize: r.ms(16), color: colors.onSurfaceInverse, fontWeight: "600", opacity: 0.85 },
   card: { borderRadius: radius.lg + 8 },
   cardInner: { padding: spacing.xl, gap: spacing.lg },
   title: { fontFamily: fonts.family, fontSize: r.ms(24), fontWeight: "800", color: colors.onSurface },
@@ -125,6 +121,6 @@ const useStyles = makeStyles((colors, r) => ({
   line: { flex: 1, height: 1, backgroundColor: colors.border },
   or: { fontFamily: fonts.family, color: colors.muted, fontSize: r.ms(12), fontWeight: "700" },
   footer: { alignItems: "center", paddingVertical: spacing.md },
-  footerText: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceSecondary },
-  footerLink: { color: colors.brandPrimary, fontWeight: "800" },
+  footerText: { fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurfaceInverse, opacity: 0.9 },
+  footerLink: { color: colors.brandSecondary, fontWeight: "800" },
 }));

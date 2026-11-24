@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -10,8 +10,9 @@ import Ionicons from "@react-native-vector-icons/ionicons";
 import * as Haptics from "expo-haptics";
 
 import { makeStyles, useTheme, fonts, radius, spacing } from "@/src/theme";
-import { api, fileUrl, uploadImage, uploadFile, type Currency, type Listing, type Period, type PlaceResult } from "@/src/api";
-import { Button, Chip, Field, IconButton } from "@/src/components/ui";
+import { api, fileUrl, uploadImage, uploadFile, type Currency, type Listing, type PlaceResult } from "@/src/api";
+import { ResidenceEditor, defaultResidence, residenceToPayload, type ResidenceDraft } from "@/src/components/residence-editor";
+import { Button, Field, IconButton } from "@/src/components/ui";
 import { Glass } from "@/src/components/glass";
 import { VideoTour } from "@/src/components/video-tour";
 import { LineArt } from "@/src/components/line-art";
@@ -19,8 +20,6 @@ import { useToast } from "@/src/components/toast";
 import { AppMap } from "@/src/components/app-map";
 import { PERIOD_LABEL, formatPrice } from "@/src/currency";
 
-const TYPES = ["apartment", "house", "studio", "room", "loft", "duplex"];
-const PERIODS: Period[] = ["week", "month", "year"];
 const STICKY_H = 92;
 
 export default function CreateListing() {
@@ -37,11 +36,7 @@ export default function CreateListing() {
   const [place, setPlace] = useState<PlaceResult | null>(null);
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const [price, setPrice] = useState("");
-  const [period, setPeriod] = useState<Period>("month");
-  const [propertyType, setPropertyType] = useState("apartment");
-  const [bedrooms, setBedrooms] = useState(1);
-  const [bathrooms, setBathrooms] = useState(1);
+  const [residences, setResidences] = useState<ResidenceDraft[]>([defaultResidence(0)]);
   const [photos, setPhotos] = useState<string[]>([]);
   const [video, setVideo] = useState<string | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
@@ -128,8 +123,10 @@ export default function CreateListing() {
   };
 
   const create = useMutation({
-    mutationFn: () =>
-      api<Listing>("/listings", {
+    mutationFn: () => {
+      const payloads = residences.map(residenceToPayload);
+      const first = payloads[0];
+      return api<Listing>("/listings", {
         method: "POST",
         body: {
           title: title.trim(),
@@ -140,16 +137,18 @@ export default function CreateListing() {
           country_code: place!.country_code,
           lat: place!.lat,
           lng: place!.lng,
-          price: Number(price.replace(/[^\d.]/g, "")),
+          price: first.price,
           currency: currency.code,
-          period,
-          property_type: propertyType,
-          bedrooms,
-          bathrooms,
+          period: first.period,
+          property_type: first.unit_type,
+          bedrooms: first.bedrooms,
+          bathrooms: first.bathrooms,
           photos,
           video,
+          residences: payloads,
         },
-      }),
+      });
+    },
     onSuccess: (l) => {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       qc.invalidateQueries({ queryKey: ["listings"] });
@@ -162,11 +161,14 @@ export default function CreateListing() {
   const submit = () => {
     if (title.trim().length < 3) return toast.show("Give the listing a title", "error");
     if (!place) return toast.show("Pick the address from the suggestions", "error");
-    if (!Number(price.replace(/[^\d.]/g, ""))) return toast.show("Enter a rent price", "error");
+    if (!residences.length) return toast.show("Add at least one residence", "error");
+    const empty = residences.findIndex((r) => !Number(r.price.replace(/[^\d.]/g, "")));
+    if (empty >= 0) return toast.show(`Set a rent price for residence ${empty + 1}`, "error");
     create.mutate();
   };
 
-  const priceNum = Number(price.replace(/[^\d.]/g, "")) || 0;
+  const firstRes = residences[0];
+  const firstPrice = Number(firstRes?.price.replace(/[^\d.]/g, "")) || 0;
 
   return (
     <View style={styles.root} testID="create-listing-screen">
@@ -253,61 +255,29 @@ export default function CreateListing() {
           {place && <AppMap pins={[{ id: "p", lat: place.lat, lng: place.lng, label: place.name, selected: true }]} center={{ lat: place.lat, lng: place.lng }} zoomDelta={0.02} interactive={false} style={styles.miniMap} />}
         </View>
 
-        {/* Type */}
-        <Text style={styles.label}>Property type</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
-          {TYPES.map((t) => (
-            <Chip key={t} testID={`type-chip-${t}`} label={t[0].toUpperCase() + t.slice(1)} selected={propertyType === t} onPress={() => setPropertyType(t)} />
-          ))}
-        </ScrollView>
-
-        <View style={styles.stepRow}>
-          <Stepper label="Bedrooms" value={bedrooms} onChange={setBedrooms} testID="bedrooms" />
-          <Stepper label="Bathrooms" value={bathrooms} onChange={setBathrooms} testID="bathrooms" />
-        </View>
-
-        {/* Price */}
-        <Text style={styles.label}>Rent period</Text>
-        <View style={styles.segment}>
-          {PERIODS.map((p) => (
-            <Pressable
-              key={p}
-              testID={`period-option-${p}`}
-              onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
-                setPeriod(p);
-              }}
-              style={[styles.segmentItem, period === p && styles.segmentItemActive]}
-            >
-              <Text style={[styles.segmentText, period === p && styles.segmentTextActive]}>{p[0].toUpperCase() + p.slice(1)}ly</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={styles.priceCard}>
-          <View style={styles.priceHead}>
-            <Text style={styles.priceLabel}>Price {PERIOD_LABEL[period]}</Text>
-            <Pressable testID="change-currency-button" onPress={() => setShowCurrency(true)} style={styles.currencyBtn}>
-              <Text style={styles.currencyBtnText}>
-                {currency.code} {currency.symbol}
-              </Text>
-              <Ionicons name="chevron-down" size={14} color={colors.onSurface} />
-            </Pressable>
-          </View>
-          <View style={styles.amountRow}>
-            <Text style={styles.amountSymbol}>{currency.symbol}</Text>
-            <TextInput testID="create-price-input" value={price} onChangeText={setPrice} keyboardType="numeric" placeholder="0" placeholderTextColor={colors.muted} style={styles.amountInput} />
-            <View style={styles.periodBadge}>
-              <Text style={styles.periodBadgeText}>{PERIOD_LABEL[period].toUpperCase()}</Text>
-            </View>
-          </View>
-          <Text style={styles.priceHint} testID="currency-hint">
-            {currencyOverride
-              ? `Currency set manually to ${currency.name}.`
-              : detected
-                ? `Auto-detected ${currency.name} from ${place?.country}. Tap the code to change.`
-                : "Pick an address to auto-detect the local currency, or choose one."}
+        {/* Currency (applies to all residences) */}
+        <Pressable testID="change-currency-button" onPress={() => setShowCurrency(true)} style={styles.currencyPicker}>
+          <Ionicons name="cash-outline" size={18} color={colors.brandPrimary} />
+          <Text style={styles.currencyRowText}>
+            All rents in <Text style={{ fontWeight: "800" }}>{currency.name}</Text> ({currency.code} {currency.symbol})
           </Text>
+          <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+        </Pressable>
+        <Text style={styles.currencyHint} testID="currency-hint">
+          {currencyOverride
+            ? `Currency set manually to ${currency.name}.`
+            : detected
+              ? `Auto-detected ${currency.name} from ${place?.country}. Tap to change.`
+              : "Pick an address to auto-detect the local currency, or choose one."}
+        </Text>
+
+        {/* Residences (units) */}
+        <View style={{ gap: spacing.sm }}>
+          <Text style={styles.label}>Residences in this structure</Text>
+          <Text style={styles.resHint}>
+            A building can hold many units — flats, rooms, shops. Each gets its own rent, fees, tenure and tenant agreement. Duplicate a residence if units are identical.
+          </Text>
+          <ResidenceEditor residences={residences} onChange={setResidences} currencySymbol={currency.symbol} />
         </View>
 
         <Field testID="create-description-input" label="Description" placeholder="What makes this place great? Power, water, transport, house rules…" value={description} onChangeText={setDescription} multiline style={{ minHeight: 100 }} />
@@ -317,9 +287,12 @@ export default function CreateListing() {
         <Glass strong style={styles.sticky}>
           <View style={[styles.stickyInner, { paddingBottom: insets.bottom + spacing.sm }]}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.stickyLabel}>Listing at</Text>
+              <Text style={styles.stickyLabel}>
+                {residences.length > 1 ? `${residences.length} residences · from` : "Listing at"}
+              </Text>
               <Text style={styles.stickyPrice} numberOfLines={1}>
-                {formatPrice(priceNum, currency.symbol, currency.code)} <Text style={styles.stickyPeriod}>{PERIOD_LABEL[period]}</Text>
+                {formatPrice(firstPrice, currency.symbol, currency.code)}{" "}
+                <Text style={styles.stickyPeriod}>{firstRes ? PERIOD_LABEL[firstRes.period] : ""}</Text>
               </Text>
             </View>
             <Button testID="create-submit-button" title="Publish" icon="rocket" onPress={submit} loading={create.isPending} style={{ flex: 1 }} />
@@ -379,27 +352,6 @@ export default function CreateListing() {
   );
 }
 
-function Stepper({ label, value, onChange, testID }: { label: string; value: number; onChange: (n: number) => void; testID: string }) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  return (
-    <View style={styles.stepper}>
-      <Text style={styles.stepLabel}>{label}</Text>
-      <View style={styles.stepControls}>
-        <Pressable testID={`${testID}-minus`} onPress={() => onChange(Math.max(0, value - 1))} style={styles.stepBtn}>
-          <Ionicons name="remove" size={18} color={colors.onSurface} />
-        </Pressable>
-        <Text style={styles.stepValue} testID={`${testID}-value`}>
-          {value}
-        </Text>
-        <Pressable testID={`${testID}-plus`} onPress={() => onChange(value + 1)} style={styles.stepBtn}>
-          <Ionicons name="add" size={18} color={colors.onSurface} />
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const useStyles = makeStyles((colors, r) => ({
   root: { flex: 1, backgroundColor: colors.surface },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.divider, position: "relative", overflow: "hidden" },
@@ -453,6 +405,10 @@ const useStyles = makeStyles((colors, r) => ({
   sheetTitle: { fontFamily: fonts.family, fontSize: r.ms(20), fontWeight: "800", color: colors.onSurface },
   sheetBody: { fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary, lineHeight: r.ms(20) },
   currencyRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  currencyPicker: { flexDirection: "row", alignItems: "center", gap: spacing.sm, backgroundColor: colors.surfaceSecondary, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.lg, height: 52 },
+  currencyRowText: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(14), color: colors.onSurfaceSecondary },
+  currencyHint: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, marginTop: -spacing.sm, marginLeft: spacing.xs },
+  resHint: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, lineHeight: r.ms(17) },
   currencySymbol: { fontFamily: fonts.family, fontSize: r.ms(16), fontWeight: "800", color: colors.onSurface, width: 44 },
   currencyName: { flex: 1, fontFamily: fonts.family, fontSize: r.ms(15), color: colors.onSurface, fontWeight: "600" },
   currencyCode: { fontFamily: fonts.family, fontSize: r.ms(12), color: colors.muted, fontWeight: "700" },
